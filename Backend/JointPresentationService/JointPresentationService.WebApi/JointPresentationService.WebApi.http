@@ -1,0 +1,6 @@
+@JointPresentationService.WebApi_HostAddress = http://localhost:5296
+
+GET {{JointPresentationService.WebApi_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

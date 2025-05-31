@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.4" />
+    <PackageReference Include="Scalar.AspNetCore" Version="2.4.7" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\JointPresentationService.Application\JointPresentationService.Application.csproj" />
+    <ProjectReference Include="..\JointPresentationService.Domain\JointPresentationService.Domain.csproj" />
+    <ProjectReference Include="..\JointPresentationService.Infrastructure\JointPresentationService.Infrastructure.csproj" />
+    <ProjectReference Include="..\JointPresentationService.Persistence\JointPresentationService.Persistence.csproj" />
+  </ItemGroup>
+
+</Project>
