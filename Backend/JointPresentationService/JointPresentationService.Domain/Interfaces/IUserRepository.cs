@@ -10,5 +10,6 @@ namespace JointPresentationService.Domain.Interfaces
         Task<User> UpdateAsync(User user);
         Task DeleteAsync(int id);
         Task<List<User>> GetAllAsync();
+        Task<List<User>> GetByIdsAsync(List<int> ids);
     }
 }

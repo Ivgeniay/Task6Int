@@ -13,8 +13,22 @@ function App() {
     connectionState,
     connect,
     connectUser,
-    onError
+    onError,
+    onUserConnected
   } = useSignalR();
+
+  useEffect(() => {
+    onUserConnected((data) => {
+      setCurrentUserId(data.userId);
+      console.log('User connected with ID:', data.userId);
+    });
+  }, [onUserConnected]);
+
+  useEffect(() => {
+    if (isLoggedIn && !connectionState.isConnected && !connectionState.isConnecting) {
+      handleLogout();
+    }
+  }, [connectionState.isConnected, connectionState.isConnecting, isLoggedIn]);
 
   useEffect(() => {
     onError((data) => {
@@ -34,7 +48,6 @@ function App() {
       await connectUser(nickname);
       
       setCurrentUser(nickname);
-      setCurrentUserId(connectionState.userId);
       setIsLoggedIn(true);
       
       console.log('User connected successfully:', nickname);

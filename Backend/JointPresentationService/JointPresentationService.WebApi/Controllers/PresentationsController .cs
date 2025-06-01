@@ -1,4 +1,5 @@
 ﻿using JointPresentationService.Application.Interfaces;
+using JointPresentationService.Application.Services;
 using Microsoft.AspNetCore.Mvc;
 
 namespace JointPresentationService.WebApi.Controllers
@@ -9,13 +10,16 @@ namespace JointPresentationService.WebApi.Controllers
     {
         private readonly IPresentationService _presentationService;
         private readonly ISlideService _slideService;
+        private readonly IUserService _userService;
 
         public PresentationsController(
             IPresentationService presentationService,
-            ISlideService slideService)
+            ISlideService slideService,
+            IUserService userService)
         {
             _presentationService = presentationService;
             _slideService = slideService;
+            _userService = userService;
         }
 
         [HttpGet]
@@ -24,7 +28,24 @@ namespace JointPresentationService.WebApi.Controllers
             try
             {
                 var presentations = await _presentationService.GetAllPresentationsAsync();
-                return Ok(presentations);
+                var creatorIds = presentations.Select(p => p.CreatorId).Distinct().ToList();
+                var creators = await _userService.GetUsersByIdsAsync(creatorIds);
+                var creatorsDict = creators.ToDictionary(u => u.Id, u => u);
+
+                var result = presentations.Select(p => new
+                {
+                    p.Id,
+                    p.Title,
+                    p.CreatedAt,
+                    p.UpdatedAt,
+                    p.CreatorId,
+                    Creator = creatorsDict.TryGetValue(p.CreatorId, out var creator)
+                        ? new { creator.Id, creator.Nickname }
+                        : null,
+                    SlidesCount = p.Slides?.Count ?? 0
+                });
+
+                return Ok(result);
             }
             catch (Exception ex)
             {

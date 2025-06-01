@@ -10,5 +10,6 @@ namespace JointPresentationService.Application.Interfaces
         Task<User> GetOrCreateUserAsync(string nickname);
         Task<List<User>> GetAllUsersAsync();
         Task<List<Presentation>> GetUserEditablePresentationsAsync(int userId);
+        Task<List<User>> GetUsersByIdsAsync(List<int> userId);
     }
 }

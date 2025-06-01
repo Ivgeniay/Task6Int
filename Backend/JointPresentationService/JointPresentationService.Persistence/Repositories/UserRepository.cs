@@ -45,6 +45,9 @@ namespace JointPresentationService.Persistence.Repositories
 
         public async Task<List<User>> GetAllAsync() =>
             await _context.Users.AsNoTracking().ToListAsync();
+
+        public async Task<List<User>> GetByIdsAsync(List<int> ids) =>
+            await _context.Users.Where(e => ids.Contains(e.Id)).ToListAsync();
         
     }
 

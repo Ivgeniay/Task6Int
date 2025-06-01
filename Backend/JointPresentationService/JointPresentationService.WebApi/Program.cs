@@ -7,6 +7,7 @@ using JointPresentationService.Persistence.Repositories;
 using JointPresentationService.WebApi.Extensions;
 using Microsoft.EntityFrameworkCore;
 using Scalar.AspNetCore;
+using System.Text.Json.Serialization;
 
 namespace JointPresentationService.WebApi
 {
@@ -18,18 +19,24 @@ namespace JointPresentationService.WebApi
 
             builder.Services.AddControllers();
             builder.Services.AddOpenApi();
-            builder.Services.AddSignalR();
+            builder.Services.AddSignalR().AddJsonProtocol(options =>
+            {
+                options.PayloadSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
+            }); ;
+
+            String?[] mbAllowedOrigins = builder
+                .Configuration
+                .GetRequiredSection("Cors:AllowedOrigins")
+                .AsEnumerable()
+                .Where(e => e.Value != null)
+                .Select(e => e.Value)
+                .ToArray();
 
             builder.Services.AddCors(options =>
             {
                 options.AddPolicy("FrontReactApp", policy =>
                 {
-                    policy.WithOrigins(
-                        "http://localhost:3000", 
-                        "http://147.45.66.49:80",
-                        "http://172.29.224.1:3000",
-                        "http://192.168.56.1:3000"
-                        )
+                    policy.WithOrigins(mbAllowedOrigins ??= new String[] { "http://localhost:3000" })
                           .AllowAnyHeader()
                           .AllowAnyMethod()
                           .AllowCredentials()

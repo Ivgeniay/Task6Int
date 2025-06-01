@@ -118,5 +118,8 @@ namespace JointPresentationService.Application.Services
 
             return createdPresentations.Concat(editorPresentations).ToList();
         }
+
+        public async Task<List<User>> GetUsersByIdsAsync(List<int> userIds) =>
+            await _userRepository.GetByIdsAsync(userIds);
     }
 }
