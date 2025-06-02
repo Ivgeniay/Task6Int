@@ -21,6 +21,10 @@ interface UseSignalROptions {
   autoConnect?: boolean;
 }
 
+interface ForceLogoutEvent {
+  reason: string;
+}
+
 interface UseSignalRReturn {
   connectionState: SignalRConnectionState;
   connect: () => Promise<void>;
@@ -46,6 +50,7 @@ interface UseSignalRReturn {
   onElementUpdated: (handler: (data: ElementUpdatedEvent) => void) => void;
   onElementDeleted: (handler: (data: ElementDeletedEvent) => void) => void;
   onError: (handler: (data: ErrorEvent) => void) => void;
+  onForceLogout: (handler: (data: ForceLogoutEvent) => void) => void;
 }
 
 export const useSignalR = (options: UseSignalROptions = {}): UseSignalRReturn => {
@@ -200,6 +205,7 @@ export const useSignalR = (options: UseSignalROptions = {}): UseSignalRReturn =>
   const onElementUpdated = createEventHandler(SIGNALR_EVENTS.ELEMENT_UPDATED);
   const onElementDeleted = createEventHandler(SIGNALR_EVENTS.ELEMENT_DELETED);
   const onError = createEventHandler(SIGNALR_EVENTS.ERROR);
+  const onForceLogout = createEventHandler('forceLogout');
 
   return {
     connectionState,
@@ -226,5 +232,6 @@ export const useSignalR = (options: UseSignalROptions = {}): UseSignalRReturn =>
     onElementUpdated,
     onElementDeleted,
     onError,
+    onForceLogout,
   };
 };

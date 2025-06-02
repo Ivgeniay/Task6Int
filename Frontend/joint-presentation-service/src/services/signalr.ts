@@ -23,6 +23,8 @@ class SignalRService {
     isConnecting: false,
   };
   private eventHandlers: Map<string, ((data: any) => void)[]> = new Map();
+  private reconnectionTimeout: NodeJS.Timeout | null = null;
+  private readonly RECONNECTION_TIMEOUT_MS = 10000;
 
   constructor() {
     this.initializeConnection();
@@ -33,7 +35,7 @@ class SignalRService {
 
     this.connection = new HubConnectionBuilder()
       .withUrl(hubUrl)
-      .withAutomaticReconnect()
+      .withAutomaticReconnect([0, 2000, 5000, 10000])
       .configureLogging(LogLevel.Information)
       .build();
 
@@ -45,6 +47,7 @@ class SignalRService {
     if (!this.connection) return;
 
     this.connection.onclose((error) => {
+      this.clearReconnectionTimeout();
       this.connectionState = {
         ...this.connectionState,
         isConnected: false,
@@ -55,6 +58,7 @@ class SignalRService {
     });
 
     this.connection.onreconnecting((error) => {
+      this.startReconnectionTimeout();
       this.connectionState = {
         ...this.connectionState,
         isConnected: false,
@@ -65,6 +69,7 @@ class SignalRService {
     });
 
     this.connection.onreconnected(() => {
+      this.clearReconnectionTimeout();
       this.connectionState = {
         ...this.connectionState,
         isConnected: true,
@@ -73,6 +78,31 @@ class SignalRService {
       };
       this.notifyStateChange();
     });
+  }
+
+  private startReconnectionTimeout(): void {
+    this.clearReconnectionTimeout();
+    this.reconnectionTimeout = setTimeout(() => {
+      this.handleReconnectionTimeout();
+    }, this.RECONNECTION_TIMEOUT_MS);
+  }
+
+  private clearReconnectionTimeout(): void {
+    if (this.reconnectionTimeout) {
+      clearTimeout(this.reconnectionTimeout);
+      this.reconnectionTimeout = null;
+    }
+  }
+
+  private handleReconnectionTimeout(): void {
+    this.connectionState = {
+      ...this.connectionState,
+      isConnected: false,
+      isConnecting: false,
+      error: 'Connection timeout - server unavailable',
+    };
+    this.notifyStateChange();
+    this.emit('forceLogout', { reason: 'Connection timeout' });
   }
 
   private setupSignalREvents(): void {
@@ -162,6 +192,8 @@ class SignalRService {
   }
 
   async disconnect(): Promise<void> {
+    this.clearReconnectionTimeout();
+    
     if (!this.connection || !this.connectionState.isConnected) {
       return;
     }

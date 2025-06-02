@@ -161,14 +161,6 @@ const PresentationTable: React.FC<PresentationTableProps> = ({
         </thead>
         <tbody className="bg-white divide-y divide-gray-200">
           {sortedPresentations.map((presentation) => {
-            // Debug логи для каждой презентации
-            console.log('Debug roles:', {
-              presentationId: presentation.id,
-              currentUserId: currentUserId,
-              presentationCreatorId: presentation.creatorId,
-              areEqual: presentation.creatorId === currentUserId,
-              types: `currentUserId: ${typeof currentUserId}, creatorId: ${typeof presentation.creatorId}`
-            });
             
             return (
             <React.Fragment key={presentation.id}>
@@ -233,7 +225,7 @@ const PresentationTable: React.FC<PresentationTableProps> = ({
                       
                       <div className="flex justify-between items-center">
                         <div className="text-sm text-gray-600">
-                          <strong>Presentation ID:</strong> {presentation.id}
+                          {/* <strong>Presentation ID:</strong> {presentation.id} */}
                         </div>
                         <button
                           onClick={() => onOpenPresentation(presentation.id)}

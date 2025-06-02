@@ -14,7 +14,8 @@ function App() {
     connect,
     connectUser,
     onError,
-    onUserConnected
+    onUserConnected,
+    onForceLogout
   } = useSignalR();
 
   useEffect(() => {
@@ -25,17 +26,19 @@ function App() {
   }, [onUserConnected]);
 
   useEffect(() => {
-    if (isLoggedIn && !connectionState.isConnected && !connectionState.isConnecting) {
-      handleLogout();
-    }
-  }, [connectionState.isConnected, connectionState.isConnecting, isLoggedIn]);
-
-  useEffect(() => {
     onError((data) => {
       setErrorMessage(data.message);
       console.error('SignalR Error:', data.message);
     });
   }, [onError]);
+
+  useEffect(() => {
+    onForceLogout((data) => {
+      console.warn('Force logout triggered:', data.reason);
+      setErrorMessage(`Connection lost: ${data.reason}. Please log in again.`);
+      handleLogout();
+    });
+  }, [onForceLogout]);
 
   const handleLogin = async (nickname: string) => {
     try {
@@ -61,7 +64,6 @@ function App() {
     setIsLoggedIn(false);
     setCurrentUser('');
     setCurrentUserId(undefined);
-    setErrorMessage('');
     console.log('User logged out');
   };
 
@@ -72,11 +74,21 @@ function App() {
           onLogin={handleLogin}
           isConnecting={connectionState.isConnecting}
         />
+
         {errorMessage && (
-          <div className="fixed bottom-4 right-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
-            {errorMessage}
+          <div className="fixed bottom-4 right-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded max-w-md">
+            <div className="flex justify-between items-start">
+              <span className="text-sm">{errorMessage}</span>
+              <button
+                onClick={() => setErrorMessage('')}
+                className="ml-2 text-red-700 hover:text-red-900 text-lg leading-none"
+              >
+                ×
+              </button>
+            </div>
           </div>
         )}
+        
       </div>
     );
   }
@@ -87,15 +99,17 @@ function App() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
             <h1 className="text-2xl font-bold text-gray-900">
-              Joint Presentation
+              Collaborative Presentation
             </h1>
             <div className="flex items-center space-x-4">
               <div className="flex items-center space-x-2">
                 <div className={`w-2 h-2 rounded-full ${
-                  connectionState.isConnected ? 'bg-green-500' : 'bg-red-500'
+                  connectionState.isConnected ? 'bg-green-500' : 
+                  connectionState.isConnecting ? 'bg-yellow-500' : 'bg-red-500'
                 }`}></div>
                 <span className="text-sm text-gray-600">
-                  {connectionState.isConnected ? 'Connected' : 'Disconnected'}
+                  {connectionState.isConnected ? 'Connected' : 
+                   connectionState.isConnecting ? 'Reconnecting...' : 'Disconnected'}
                 </span>
               </div>
               <span className="text-gray-700">
@@ -116,14 +130,16 @@ function App() {
         <PresentationList currentUserId={currentUserId} />
         
         {errorMessage && (
-          <div className="fixed bottom-4 right-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
-            {errorMessage}
-            <button
-              onClick={() => setErrorMessage('')}
-              className="float-right ml-2 text-red-700 hover:text-red-900"
-            >
-              ×
-            </button>
+          <div className="fixed bottom-4 right-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded max-w-md">
+            <div className="flex justify-between items-start">
+              <span className="text-sm">{errorMessage}</span>
+              <button
+                onClick={() => setErrorMessage('')}
+                className="ml-2 text-red-700 hover:text-red-900 text-lg leading-none"
+              >
+                ×
+              </button>
+            </div>
           </div>
         )}
       </main>
