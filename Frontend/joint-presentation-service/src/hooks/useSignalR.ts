@@ -13,6 +13,7 @@ import {
   ElementAddedEvent,
   ElementUpdatedEvent,
   ElementDeletedEvent,
+  ConnectedUsersListUpdatedEvent,
   ErrorEvent
 } from '../types/signalr';
 import signalRService from '../services/signalr';
@@ -51,6 +52,7 @@ interface UseSignalRReturn {
   onElementDeleted: (handler: (data: ElementDeletedEvent) => void) => void;
   onError: (handler: (data: ErrorEvent) => void) => void;
   onForceLogout: (handler: (data: ForceLogoutEvent) => void) => void;
+  onConnectedUsersUpdated: (handler: (data: ConnectedUsersListUpdatedEvent) => void) => void;
 }
 
 export const useSignalR = (options: UseSignalROptions = {}): UseSignalRReturn => {
@@ -206,6 +208,7 @@ export const useSignalR = (options: UseSignalROptions = {}): UseSignalRReturn =>
   const onElementDeleted = createEventHandler(SIGNALR_EVENTS.ELEMENT_DELETED);
   const onError = createEventHandler(SIGNALR_EVENTS.ERROR);
   const onForceLogout = createEventHandler('forceLogout');
+  const onConnectedUsersUpdated = createEventHandler(SIGNALR_EVENTS.CONNECTED_USERS_UPDATED);
 
   return {
     connectionState,
@@ -233,5 +236,6 @@ export const useSignalR = (options: UseSignalROptions = {}): UseSignalRReturn =>
     onElementDeleted,
     onError,
     onForceLogout,
+    onConnectedUsersUpdated
   };
 };

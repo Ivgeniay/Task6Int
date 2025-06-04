@@ -12,6 +12,7 @@
                 public const string PresentationCreated = nameof(PresentationCreated);
                 public const string PresentationDeleted = nameof(PresentationDeleted);
                 public const string PresentationUpdated = nameof(PresentationUpdated);
+                public const string ConnectedUsersListUpdated = nameof(ConnectedUsersListUpdated);
                 public const string JoinedPresentation = nameof(JoinedPresentation);
                 public const string UserJoinedPresentation = nameof(UserJoinedPresentation);
                 public const string UserLeftPresentation = nameof(UserLeftPresentation);

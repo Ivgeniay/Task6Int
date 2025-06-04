@@ -18,7 +18,12 @@ export const SIGNALR_EVENTS = {
   EDITOR_GRANTED: 'EditorGranted',
   EDITOR_REMOVED: 'EditorRemoved',
   ERROR: 'Error',
+  CONNECTED_USERS_UPDATED: 'ConnectedUsersListUpdated'
 } as const;
+
+export interface ConnectedUsersListUpdatedEvent {
+  joinedUsers: UserJoinedPresentationEvent[];
+}
 
 export interface UserConnectedEvent {
   userId: number;
@@ -122,7 +127,8 @@ export type SignalREvent =
   | ElementDeletedEvent
   | EditorGrantedEvent
   | EditorRemovedEvent
-  | ErrorEvent;
+  | ErrorEvent
+  | ConnectedUsersListUpdatedEvent;
 
 export interface SignalRConnectionState {
   isConnected: boolean;

@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Presentation } from '../../types/api';
 
 interface PresentationTableProps {
   presentations: Presentation[];
   currentUserId?: number;
-  onOpenPresentation: (presentationId: number) => void;
   onDeletePresentation: (presentationId: number) => void;
 }
 
@@ -14,9 +14,9 @@ type SortDirection = 'asc' | 'desc';
 const PresentationTable: React.FC<PresentationTableProps> = ({
   presentations,
   currentUserId,
-  onOpenPresentation,
   onDeletePresentation
 }) => {
+  const navigate = useNavigate();
   const [sortField, setSortField] = useState<SortField>('updatedAt');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [expandedRow, setExpandedRow] = useState<number | null>(null);
@@ -28,6 +28,10 @@ const PresentationTable: React.FC<PresentationTableProps> = ({
       setSortField(field);
       setSortDirection('asc');
     }
+  };
+
+  const handleOpenPresentation = (presentationId: number) => {
+    navigate(`/presentation/${presentationId}`);
   };
 
   const sortedPresentations = [...presentations].sort((a, b) => {
@@ -161,7 +165,6 @@ const PresentationTable: React.FC<PresentationTableProps> = ({
         </thead>
         <tbody className="bg-white divide-y divide-gray-200">
           {sortedPresentations.map((presentation) => {
-            
             return (
             <React.Fragment key={presentation.id}>
               <tr 
@@ -195,7 +198,7 @@ const PresentationTable: React.FC<PresentationTableProps> = ({
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      onOpenPresentation(presentation.id);
+                      handleOpenPresentation(presentation.id);
                     }}
                     className="text-blue-600 hover:text-blue-900"
                   >
@@ -228,7 +231,7 @@ const PresentationTable: React.FC<PresentationTableProps> = ({
                           {/* <strong>Presentation ID:</strong> {presentation.id} */}
                         </div>
                         <button
-                          onClick={() => onOpenPresentation(presentation.id)}
+                          onClick={() => handleOpenPresentation(presentation.id)}
                           className="px-4 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 transition-colors"
                         >
                           Open Presentation

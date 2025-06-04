@@ -2,6 +2,7 @@
 using JointPresentationService.Infrastructure.Constants;
 using JointPresentationService.Infrastructure.SirnalR.Models;
 using Microsoft.AspNetCore.SignalR;
+using System.Collections.Concurrent;
 
 namespace JointPresentationService.Infrastructure.SirnalR.Hubs
 {
@@ -11,6 +12,9 @@ namespace JointPresentationService.Infrastructure.SirnalR.Hubs
         private readonly ISlideService _slideService;
         private readonly IUserService _userService;
 
+        private static readonly ConcurrentDictionary<int, List<UserJoinedPresentationEvent>> _connectedUsers = new();
+        private static readonly object _lockObject = new object();
+
         public PresentationHub(
             IPresentationService presentationService,
             ISlideService slideService,
@@ -19,6 +23,58 @@ namespace JointPresentationService.Infrastructure.SirnalR.Hubs
             _presentationService = presentationService;
             _slideService = slideService;
             _userService = userService;
+        }
+
+        private void AddConnectedUser(int presentationId, UserJoinedPresentationEvent userEvent)
+        {
+            lock (_lockObject)
+            {
+                if (!_connectedUsers.ContainsKey(presentationId))
+                {
+                    _connectedUsers[presentationId] = new List<UserJoinedPresentationEvent>();
+                }
+
+                var userList = _connectedUsers[presentationId];
+                var existingUser = userList.FirstOrDefault(u => u.UserId == userEvent.UserId);
+
+                if (existingUser == null)
+                {
+                    userList.Add(userEvent);
+                }
+                else
+                {
+                    existingUser.CanEdit = userEvent.CanEdit;
+                }
+            }
+        }
+
+        private void RemoveConnectedUser(int presentationId, int userId)
+        {
+            lock (_lockObject)
+            {
+                if (_connectedUsers.ContainsKey(presentationId))
+                {
+                    var userList = _connectedUsers[presentationId];
+                    userList.RemoveAll(u => u.UserId == userId);
+
+                    if (userList.Count == 0)
+                    {
+                        _connectedUsers.TryRemove(presentationId, out _);
+                    }
+                }
+            }
+        }
+
+        public async Task<List<UserJoinedPresentationEvent>> GetConnectedUsers(int presentationId)
+        {
+            lock (_lockObject)
+            {
+                if (_connectedUsers.ContainsKey(presentationId))
+                {
+                    return new List<UserJoinedPresentationEvent>(_connectedUsers[presentationId]);
+                }
+                return new List<UserJoinedPresentationEvent>();
+            }
         }
 
         public async Task ConnectUser(string nickname)
@@ -32,7 +88,13 @@ namespace JointPresentationService.Infrastructure.SirnalR.Hubs
                 Context.Items[InfrastructureConstants.SignalRConstants.ContextKeys.UserId] = user.Id;
                 Context.Items[InfrastructureConstants.SignalRConstants.ContextKeys.Nickname] = nickname;
 
-                await Clients.Group(InfrastructureConstants.SignalRConstants.Groups.GlobalUsers).SendAsync(
+                //await Clients.Group(InfrastructureConstants.SignalRConstants.Groups.GlobalUsers).SendAsync(
+                //    InfrastructureConstants.SignalRConstants.Events.UserConnected, new UserConnectedEvent
+                //    {
+                //        UserId = user.Id,
+                //        Nickname = user.Nickname
+                //    });
+                await Clients.Caller.SendAsync(
                     InfrastructureConstants.SignalRConstants.Events.UserConnected, new UserConnectedEvent
                     {
                         UserId = user.Id,
@@ -170,6 +232,17 @@ namespace JointPresentationService.Infrastructure.SirnalR.Hubs
 
                 Context.Items[InfrastructureConstants.SignalRConstants.ContextKeys.PresentationId] = presentationId;
 
+                var userJoinedEvent = new UserJoinedPresentationEvent
+                {
+                    UserId = userId,
+                    Nickname = nickname,
+                    CanEdit = canEdit
+                };
+
+                AddConnectedUser(presentationId, userJoinedEvent);
+
+                var connectedUsers = await GetConnectedUsers(presentationId);
+
                 await Clients.Caller.SendAsync(InfrastructureConstants.SignalRConstants.Events.JoinedPresentation, new JoinedPresentationEvent
                 {
                     Presentation = presentation,
@@ -177,12 +250,9 @@ namespace JointPresentationService.Infrastructure.SirnalR.Hubs
                     CanEdit = canEdit
                 });
 
-                await Clients.Group(groupName).SendAsync(InfrastructureConstants.SignalRConstants.Events.UserJoinedPresentation, new UserJoinedPresentationEvent
-                {
-                    UserId = userId,
-                    Nickname = nickname,
-                    CanEdit = canEdit
-                });
+                await Clients.Caller.SendAsync(InfrastructureConstants.SignalRConstants.Events.ConnectedUsersListUpdated, new { joinedUsers = connectedUsers });
+
+                await Clients.Group(groupName).SendAsync(InfrastructureConstants.SignalRConstants.Events.UserJoinedPresentation, userJoinedEvent);
             }
             catch (Exception ex)
             {
@@ -202,6 +272,8 @@ namespace JointPresentationService.Infrastructure.SirnalR.Hubs
                 var presentationId = (int)presentationIdObj;
                 var userId = (int)userIdObj;
                 var nickname = (string)nicknameObj;
+
+                RemoveConnectedUser(presentationId, userId);
 
                 var groupName = InfrastructureConstants.SignalRConstants.Groups.GetPresentationGroup(presentationId);
                 await Groups.RemoveFromGroupAsync(Context.ConnectionId, groupName);
@@ -368,6 +440,12 @@ namespace JointPresentationService.Infrastructure.SirnalR.Hubs
                         UserId = userId,
                         Nickname = nickname
                     });
+
+                if (Context.Items.TryGetValue(InfrastructureConstants.SignalRConstants.ContextKeys.PresentationId, out var presentationIdObj))
+                {
+                    var presentationId = (int)presentationIdObj;
+                    RemoveConnectedUser(presentationId, userId);
+                }
             }
 
             await LeavePresentation();
@@ -379,5 +457,4 @@ namespace JointPresentationService.Infrastructure.SirnalR.Hubs
             await base.OnConnectedAsync();
         }
     }
-
 }

@@ -13,6 +13,7 @@ import {
   ElementAddedEvent,
   ElementUpdatedEvent,
   ElementDeletedEvent,
+  ConnectedUsersListUpdatedEvent,
   ErrorEvent
 } from '../types/signalr';
 
@@ -110,6 +111,10 @@ class SignalRService {
 
     this.connection.on(SIGNALR_EVENTS.USER_CONNECTED, (data: UserConnectedEvent) => {
       this.emit(SIGNALR_EVENTS.USER_CONNECTED, data);
+    });
+
+    this.connection.on(SIGNALR_EVENTS.CONNECTED_USERS_UPDATED, (data: ConnectedUsersListUpdatedEvent) => {
+      this.emit(SIGNALR_EVENTS.CONNECTED_USERS_UPDATED, data);
     });
 
     this.connection.on(SIGNALR_EVENTS.USER_DISCONNECTED, (data: UserDisconnectedEvent) => {
