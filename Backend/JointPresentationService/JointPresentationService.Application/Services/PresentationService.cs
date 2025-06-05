@@ -2,6 +2,7 @@
 using JointPresentationService.Domain.Interfaces;
 using JointPresentationService.Domain.Models;
 using JointPresentationService.Domain;
+using JointPresentationService.Application.Models;
 
 namespace JointPresentationService.Application.Services
 {
@@ -181,9 +182,49 @@ namespace JointPresentationService.Application.Services
             await _presentationRepository.RemoveEditorAsync(presentationId, userId);
         }
 
-        public async Task<List<Presentation>> GetAllPresentationsAsync()
+        public async Task<List<PresentationDto>> GetAllPresentationsAsync()
         {
-            return await _presentationRepository.GetAllAsync();
+            var presentations = await _presentationRepository.GetAllAsync();
+
+            var result = new List<PresentationDto>();
+
+            foreach (var presentation in presentations)
+            {
+                var presentationDto = new PresentationDto
+                {
+                    Id = presentation.Id,
+                    Title = presentation.Title,
+                    CreatedAt = presentation.CreatedAt,
+                    UpdatedAt = presentation.UpdatedAt,
+                    CreatorId = presentation.CreatorId,
+                    Creator = presentation.Creator != null ? new UserDto
+                    {
+                        Id = presentation.Creator.Id,
+                        Nickname = presentation.Creator.Nickname,
+                        CreatedAt = presentation.Creator.CreatedAt
+                    } : null,
+                    Slides = presentation.Slides?.OrderBy(slide => slide.Order).Select(slide => new SlideDto
+                    {
+                        Id = slide.Id,
+                        Order = slide.Order,
+                        PresentationId = slide.PresentationId,
+                        CreatedAt = slide.CreatedAt,
+                        UpdatedAt = slide.UpdatedAt,
+                        ElementsCount = slide.Elements?.Count ?? 0,
+                        ElementIds = slide.Elements?.Select(e => e.Id).ToList() ?? new List<int>()
+                    }).ToList() ?? new List<SlideDto>(),
+                    EditorUsers = presentation.EditorUsers?.Where(eu => eu.User != null).Select(eu => new UserDto
+                    {
+                        Id = eu.User.Id,
+                        Nickname = eu.User.Nickname,
+                        CreatedAt = eu.User.CreatedAt
+                    }).ToList() ?? new List<UserDto>()
+                };
+
+                result.Add(presentationDto);
+            }
+
+            return result;
         }
 
         public async Task<List<Presentation>> GetUserCreatedPresentationsAsync(int userId)

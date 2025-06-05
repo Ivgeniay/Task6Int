@@ -17,6 +17,7 @@ export const SIGNALR_EVENTS = {
   ELEMENT_DELETED: 'ElementDeleted',
   EDITOR_GRANTED: 'EditorGranted',
   EDITOR_REMOVED: 'EditorRemoved',
+  USER_UPDATE_RIGHTS: 'UserUpdateRights',
   ERROR: 'Error',
   CONNECTED_USERS_UPDATED: 'ConnectedUsersListUpdated'
 } as const;
@@ -106,6 +107,13 @@ export interface EditorRemovedEvent {
   presentationId: number;
 }
 
+export interface UserUpdateRightsEvent {
+  userId: number;
+  nickname: string;
+  canEdit: boolean;
+  presentationId: number;
+}
+
 export interface ErrorEvent {
   message: string;
 }
@@ -128,7 +136,8 @@ export type SignalREvent =
   | EditorGrantedEvent
   | EditorRemovedEvent
   | ErrorEvent
-  | ConnectedUsersListUpdatedEvent;
+  | ConnectedUsersListUpdatedEvent 
+  | UserUpdateRightsEvent;
 
 export interface SignalRConnectionState {
   isConnected: boolean;
@@ -149,4 +158,6 @@ export interface PresentationHubMethods {
   addSlideElement: (slideId: number, properties: string) => Promise<void>;
   updateSlideElement: (elementId: number, properties: string) => Promise<void>;
   deleteSlideElement: (elementId: number) => Promise<void>;
+  grantEditorRights: (presentationId: number, userId: number) => Promise<void>;
+  removeEditorRights: (presentationId: number, userId: number) => Promise<void>;
 }

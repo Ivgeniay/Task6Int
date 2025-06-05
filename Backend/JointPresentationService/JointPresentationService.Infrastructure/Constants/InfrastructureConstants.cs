@@ -16,6 +16,7 @@
                 public const string JoinedPresentation = nameof(JoinedPresentation);
                 public const string UserJoinedPresentation = nameof(UserJoinedPresentation);
                 public const string UserLeftPresentation = nameof(UserLeftPresentation);
+                public const string UserUpdateRights = nameof(UserUpdateRights);
 
                 public const string SlideAdded = nameof(SlideAdded);
                 public const string SlideDeleted = nameof(SlideDeleted);

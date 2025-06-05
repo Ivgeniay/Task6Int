@@ -110,6 +110,112 @@ namespace JointPresentationService.Infrastructure.SirnalR.Hubs
             }
         }
 
+        public async Task GrantEditorRights(int presentationId, int userId)
+        {
+            try
+            {
+                if (!Context.Items.TryGetValue(InfrastructureConstants.SignalRConstants.ContextKeys.UserId, out var grantedByUserIdObj) ||
+                    !Context.Items.TryGetValue(InfrastructureConstants.SignalRConstants.ContextKeys.Nickname, out var grantedByNicknameObj))
+                {
+                    await Clients.Caller.SendAsync(InfrastructureConstants.SignalRConstants.Events.Error, new ErrorEvent
+                    {
+                        Message = InfrastructureConstants.SignalRConstants.ErrorMessages.UserNotAuthenticated
+                    });
+                    return;
+                }
+
+                var grantedByUserId = (int)grantedByUserIdObj;
+                var grantedByNickname = (string)grantedByNicknameObj;
+
+                await _presentationService.GrantEditorRightsAsync(presentationId, userId, grantedByUserId);
+
+                var user = await _userService.GetByIdAsync(userId);
+
+                await UpdateConnectedUserRights(presentationId, userId, true);
+
+                var groupName = InfrastructureConstants.SignalRConstants.Groups.GetPresentationGroup(presentationId);
+                await Clients.Group(groupName).SendAsync(InfrastructureConstants.SignalRConstants.Events.EditorGranted, new EditorGrantedEvent
+                {
+                    UserId = userId,
+                    Nickname = user.Nickname,
+                    PresentationId = presentationId
+                });
+            }
+            catch (Exception ex)
+            {
+                await Clients.Caller.SendAsync(InfrastructureConstants.SignalRConstants.Events.Error, new ErrorEvent
+                {
+                    Message = ex.Message
+                });
+            }
+        }
+
+        public async Task RemoveEditorRights(int presentationId, int userId)
+        {
+            try
+            {
+                if (!Context.Items.TryGetValue(InfrastructureConstants.SignalRConstants.ContextKeys.UserId, out var removedByUserIdObj) ||
+                    !Context.Items.TryGetValue(InfrastructureConstants.SignalRConstants.ContextKeys.Nickname, out var removedByNicknameObj))
+                {
+                    await Clients.Caller.SendAsync(InfrastructureConstants.SignalRConstants.Events.Error, new ErrorEvent
+                    {
+                        Message = InfrastructureConstants.SignalRConstants.ErrorMessages.UserNotAuthenticated
+                    });
+                    return;
+                }
+
+                var removedByUserId = (int)removedByUserIdObj;
+                var removedByNickname = (string)removedByNicknameObj;
+
+                await _presentationService.RemoveEditorRightsAsync(presentationId, userId, removedByUserId);
+
+                var user = await _userService.GetByIdAsync(userId);
+
+                await UpdateConnectedUserRights(presentationId, userId, false);
+
+                var groupName = InfrastructureConstants.SignalRConstants.Groups.GetPresentationGroup(presentationId);
+                await Clients.Group(groupName).SendAsync(InfrastructureConstants.SignalRConstants.Events.EditorRemoved, new EditorRemovedEvent
+                {
+                    UserId = userId,
+                    Nickname = user.Nickname,
+                    PresentationId = presentationId
+                });
+            }
+            catch (Exception ex)
+            {
+                await Clients.Caller.SendAsync(InfrastructureConstants.SignalRConstants.Events.Error, new ErrorEvent
+                {
+                    Message = ex.Message
+                });
+            }
+        }
+
+        private async Task UpdateConnectedUserRights(int presentationId, int userId, bool canEdit)
+        {
+            lock (_lockObject)
+            {
+                if (_connectedUsers.ContainsKey(presentationId))
+                {
+                    var userList = _connectedUsers[presentationId];
+                    var existingUser = userList.FirstOrDefault(u => u.UserId == userId);
+
+                    if (existingUser != null)
+                    {
+                        existingUser.CanEdit = canEdit;
+                    }
+                }
+            }
+
+            var groupName = InfrastructureConstants.SignalRConstants.Groups.GetPresentationGroup(presentationId);
+            await Clients.Group(groupName).SendAsync(InfrastructureConstants.SignalRConstants.Events.UserUpdateRights, new UpdateUserRightsEvent
+            {
+                UserId = userId,
+                Nickname = await GetUserNickname(userId),
+                CanEdit = canEdit,
+                PresentationId = presentationId
+            });
+        }
+
         public async Task CreatePresentation(string title)
         {
             try
@@ -455,6 +561,21 @@ namespace JointPresentationService.Infrastructure.SirnalR.Hubs
         public override async Task OnConnectedAsync()
         {
             await base.OnConnectedAsync();
+        }
+
+
+
+        private async Task<string> GetUserNickname(int userId)
+        {
+            try
+            {
+                var user = await _userService.GetByIdAsync(userId);
+                return user.Nickname;
+            }
+            catch
+            {
+                return $"User {userId}";
+            }
         }
     }
 }

@@ -15,8 +15,8 @@ namespace JointPresentationService.Persistence.Repositories
 
         public async Task<Presentation?> GetByIdAsync(int id) =>
             await _context.Presentations
-            .AsNoTracking().
-            FirstOrDefaultAsync(p => p.Id == id);
+            .AsNoTracking()
+            .FirstOrDefaultAsync(p => p.Id == id);
 
         public async Task<Presentation?> GetByIdWithSlidesAsync(int id) =>
             await _context.Presentations
@@ -51,6 +51,8 @@ namespace JointPresentationService.Persistence.Repositories
         public async Task<List<Presentation>> GetAllAsync() =>
             await _context.Presentations
             .Include(p => p.Creator)
+            .Include(p => p.EditorUsers).ThenInclude(eu => eu.User)
+            .Include(p => p.Slides).ThenInclude(s => s.Elements)
             .AsNoTracking()
             .ToListAsync();
         
@@ -60,7 +62,6 @@ namespace JointPresentationService.Persistence.Repositories
                 .AsNoTracking()
                 .Where(p => p.CreatorId == creatorId)
                 .ToListAsync();
-        
 
         public async Task<List<User>> GetEditorsAsync(int presentationId) =>
             await _context.UserEditorPresentations
@@ -97,7 +98,13 @@ namespace JointPresentationService.Persistence.Repositories
             await _context.UserEditorPresentations
                 .AsNoTracking()
                 .AnyAsync(uep => uep.PresentationId == presentationId && uep.UserId == userId);
-        
+
+        public async Task<List<Presentation>> GetByEditorIdAsync(int editorId) =>
+            await _context.UserEditorPresentations
+                .AsNoTracking()
+                .Where(uep => uep.UserId == editorId)
+                .Select(uep => uep.Presentation)
+                .ToListAsync();
     }
 
 }

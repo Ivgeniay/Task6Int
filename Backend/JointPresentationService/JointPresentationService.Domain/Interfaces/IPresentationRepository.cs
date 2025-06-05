@@ -11,6 +11,7 @@ namespace JointPresentationService.Domain.Interfaces
         Task DeleteAsync(int id);
         Task<List<Presentation>> GetAllAsync();
         Task<List<Presentation>> GetByCreatorIdAsync(int creatorId);
+        Task<List<Presentation>> GetByEditorIdAsync(int creatorId);
         Task<List<User>> GetEditorsAsync(int presentationId);
         Task AddEditorAsync(int presentationId, int userId);
         Task RemoveEditorAsync(int presentationId, int userId);

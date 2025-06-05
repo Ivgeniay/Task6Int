@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 
 interface ConnectedUser {
   userId: number;
@@ -11,19 +11,48 @@ interface UserCardProps {
   user: ConnectedUser;
   isCurrentUser: boolean;
   canManageRoles: boolean;
-  onGrantEditor: (userId: number) => void;
-  onRemoveEditor: (userId: number) => void;
+  presentationId: number;
+  onGrantEditor: (presentationId: number, userId: number) => Promise<void>;
+  onRemoveEditor: (presentationId: number, userId: number) => Promise<void>;
 }
 
 const UserCard: React.FC<UserCardProps> = ({
   user,
   isCurrentUser,
   canManageRoles,
+  presentationId,
   onGrantEditor,
   onRemoveEditor
 }) => {
+  const [isLoading, setIsLoading] = useState(false);
   const status = user.isOnline ? 'online' : 'offline';
   const role = user.canEdit ? 'Editor' : 'Viewer';
+
+  const handleGrantEditor = async () => {
+    if (isLoading) return;
+    
+    try {
+      setIsLoading(true);
+      await onGrantEditor(presentationId, user.userId);
+    } catch (error) {
+      console.error('Failed to grant editor rights:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleRemoveEditor = async () => {
+    if (isLoading) return;
+    
+    try {
+      setIsLoading(true);
+      await onRemoveEditor(presentationId, user.userId);
+    } catch (error) {
+      console.error('Failed to remove editor rights:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <div className="bg-white rounded-lg p-3 shadow-sm border">
@@ -70,19 +99,49 @@ const UserCard: React.FC<UserCardProps> = ({
           <div className="flex items-center space-x-1">
             {user.canEdit ? (
               <button
-                onClick={() => onRemoveEditor(user.userId)}
-                className="text-xs px-2 py-1 text-red-600 hover:bg-red-50 rounded transition-colors"
+                onClick={handleRemoveEditor}
+                disabled={isLoading}
+                className={`text-xs px-3 py-1 rounded-md font-medium transition-all duration-200 ${
+                  isLoading
+                    ? 'text-gray-400 bg-gray-100 cursor-not-allowed'
+                    : 'text-red-600 hover:bg-red-50 hover:text-red-700'
+                }`}
                 title="Remove editor rights"
               >
-                Remove
+                {isLoading ? (
+                  <span className="flex items-center">
+                    <svg className="animate-spin -ml-1 mr-1 h-3 w-3" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Removing...
+                  </span>
+                ) : (
+                  'Remove'
+                )}
               </button>
             ) : (
               <button
-                onClick={() => onGrantEditor(user.userId)}
-                className="text-xs px-2 py-1 text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                onClick={handleGrantEditor}
+                disabled={isLoading}
+                className={`text-xs px-3 py-1 rounded-md font-medium transition-all duration-200 ${
+                  isLoading
+                    ? 'text-gray-400 bg-gray-100 cursor-not-allowed'
+                    : 'text-blue-600 hover:bg-blue-50 hover:text-blue-700'
+                }`}
                 title="Grant editor rights"
               >
-                Make Editor
+                {isLoading ? (
+                  <span className="flex items-center">
+                    <svg className="animate-spin -ml-1 mr-1 h-3 w-3" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Granting...
+                  </span>
+                ) : (
+                  'Make Editor'
+                )}
               </button>
             )}
           </div>

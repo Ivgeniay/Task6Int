@@ -11,8 +11,34 @@ export interface Presentation {
   createdAt: string;
   updatedAt: string;
   creator?: User;
-  slides?: Slide[];
-  editorUsers?: UserEditorPresentation[];
+  slides?: Slide[];          
+  editorUsers?: UserEditorPresentation[];  
+}
+
+export interface PresentationResponseDto {
+  id: number;
+  title: string;
+  creatorId: number;
+  createdAt: string;
+  updatedAt: string;
+  creator?: UserResponseDto;
+  slides?: SlideResponseDto[];
+  editorUsers?: UserResponseDto[];
+}
+export interface UserResponseDto {
+  id: number;
+  nickname: string;
+  createdAt: string;
+}
+
+export interface SlideResponseDto {
+  id: number;
+  order: number;
+  presentationId: number;
+  createdAt: string;
+  updatedAt: string;
+  elementsCount: number;
+  elementIds: number[];
 }
 
 export interface Slide {
@@ -23,6 +49,16 @@ export interface Slide {
   updatedAt: string;
   presentation?: Presentation;
   elements?: SlideElement[];
+}
+
+export interface SlideResponseDto {
+  id: number;
+  order: number;
+  presentationId: number;
+  createdAt: string;
+  updatedAt: string;
+  elementsCount: number;
+  elementIds: number[];
 }
 
 export interface SlideElement {
@@ -41,7 +77,6 @@ export interface UserEditorPresentation {
   presentationId: number;
   addedAt: string;
   user?: User;
-  presentation?: Presentation;
 }
 
 export interface ApiResponse<T> {

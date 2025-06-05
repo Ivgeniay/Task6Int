@@ -113,8 +113,7 @@ namespace JointPresentationService.Application.Services
             }
 
             var createdPresentations = await _presentationRepository.GetByCreatorIdAsync(userId);
-
-            var editorPresentations = new List<Presentation>();
+            var editorPresentations = await _presentationRepository.GetByEditorIdAsync(userId);
 
             return createdPresentations.Concat(editorPresentations).ToList();
         }

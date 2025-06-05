@@ -1,4 +1,5 @@
-﻿using JointPresentationService.Domain.Models;
+﻿using JointPresentationService.Application.Models;
+using JointPresentationService.Domain.Models;
 
 namespace JointPresentationService.Application.Interfaces
 {
@@ -12,7 +13,7 @@ namespace JointPresentationService.Application.Interfaces
         Task<Slide> AddSlideAsync(int presentationId, int userId);
         Task GrantEditorRightsAsync(int presentationId, int userId, int grantedByUserId);
         Task RemoveEditorRightsAsync(int presentationId, int userId, int removedByUserId);
-        Task<List<Presentation>> GetAllPresentationsAsync();
+        Task<List<PresentationDto>> GetAllPresentationsAsync();
         Task<List<Presentation>> GetUserCreatedPresentationsAsync(int userId);
         Task<List<User>> GetPresentationEditorsAsync(int presentationId);
     }

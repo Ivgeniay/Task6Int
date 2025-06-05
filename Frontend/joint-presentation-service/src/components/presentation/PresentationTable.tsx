@@ -21,6 +21,13 @@ const PresentationTable: React.FC<PresentationTableProps> = ({
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [expandedRow, setExpandedRow] = useState<number | null>(null);
 
+  const getUserRole = (presentation: Presentation, currentUserId?: number) => {
+    if (!currentUserId) return 'Viewer';
+    if (presentation.creatorId === currentUserId) return 'Creator';
+    if (presentation.editorUsers?.some(editor => editor.userId === currentUserId)) return 'Editor';
+    return 'Viewer';
+  };
+
   const handleSort = (field: SortField) => {
     if (sortField === field) {
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
@@ -68,6 +75,12 @@ const PresentationTable: React.FC<PresentationTableProps> = ({
       hour: '2-digit',
       minute: '2-digit'
     });
+  };
+
+  const roleStyles = {
+    Creator: 'bg-blue-100 text-blue-800',
+    Editor: 'bg-green-100 text-green-800',
+    Viewer: 'bg-gray-100 text-gray-800'
   };
 
   const getSortIcon = (field: SortField) => {
@@ -186,13 +199,14 @@ const PresentationTable: React.FC<PresentationTableProps> = ({
                   {formatDate(presentation.updatedAt)}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                    presentation.creatorId === currentUserId
-                      ? 'bg-blue-100 text-blue-800'
-                      : 'bg-gray-100 text-gray-800'
-                  }`}>
-                    {presentation.creatorId === currentUserId ? 'Creator' : 'Viewer'}
-                  </span>
+                  {(() => {
+                    const userRole = getUserRole(presentation, currentUserId);
+                    return (
+                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${roleStyles[userRole]}`}>
+                        {userRole}
+                      </span>
+                    );
+                  })()}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                   <button
@@ -228,7 +242,6 @@ const PresentationTable: React.FC<PresentationTableProps> = ({
                       
                       <div className="flex justify-between items-center">
                         <div className="text-sm text-gray-600">
-                          {/* <strong>Presentation ID:</strong> {presentation.id} */}
                         </div>
                         <button
                           onClick={() => handleOpenPresentation(presentation.id)}

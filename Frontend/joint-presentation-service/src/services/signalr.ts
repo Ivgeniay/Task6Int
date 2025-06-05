@@ -14,6 +14,9 @@ import {
   ElementUpdatedEvent,
   ElementDeletedEvent,
   ConnectedUsersListUpdatedEvent,
+  EditorGrantedEvent,
+  EditorRemovedEvent,
+  UserUpdateRightsEvent,
   ErrorEvent
 } from '../types/signalr';
 
@@ -158,6 +161,18 @@ class SignalRService {
       this.emit(SIGNALR_EVENTS.ELEMENT_DELETED, data);
     });
 
+    this.connection.on(SIGNALR_EVENTS.EDITOR_GRANTED, (data: EditorGrantedEvent) => {
+      this.emit(SIGNALR_EVENTS.EDITOR_GRANTED, data);
+    });
+
+    this.connection.on(SIGNALR_EVENTS.EDITOR_REMOVED, (data: EditorRemovedEvent) => {
+      this.emit(SIGNALR_EVENTS.EDITOR_REMOVED, data);
+    });
+
+    this.connection.on(SIGNALR_EVENTS.USER_UPDATE_RIGHTS, (data: UserUpdateRightsEvent) => {
+      this.emit(SIGNALR_EVENTS.USER_UPDATE_RIGHTS, data);
+    });
+
     this.connection.on(SIGNALR_EVENTS.ERROR, (data: ErrorEvent) => {
       this.emit(SIGNALR_EVENTS.ERROR, data);
     });
@@ -291,6 +306,22 @@ class SignalRService {
     }
 
     await this.connection.invoke('DeleteSlideElement', elementId);
+  }
+
+  async grantEditorRights(presentationId: number, userId: number): Promise<void> {
+    if (!this.connection || !this.connectionState.isConnected) {
+      throw new Error('Not connected to SignalR hub');
+    }
+
+    await this.connection.invoke('GrantEditorRights', presentationId, userId);
+  }
+
+  async removeEditorRights(presentationId: number, userId: number): Promise<void> {
+    if (!this.connection || !this.connectionState.isConnected) {
+      throw new Error('Not connected to SignalR hub');
+    }
+
+    await this.connection.invoke('RemoveEditorRights', presentationId, userId);
   }
 
   on(eventName: string, handler: (data: any) => void): void {

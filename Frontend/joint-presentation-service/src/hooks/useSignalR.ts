@@ -14,6 +14,9 @@ import {
   ElementUpdatedEvent,
   ElementDeletedEvent,
   ConnectedUsersListUpdatedEvent,
+  EditorGrantedEvent,
+  EditorRemovedEvent,
+  UserUpdateRightsEvent,
   ErrorEvent
 } from '../types/signalr';
 import signalRService from '../services/signalr';
@@ -39,6 +42,8 @@ interface UseSignalRReturn {
   addSlideElement: (slideId: number, properties: string) => Promise<void>;
   updateSlideElement: (elementId: number, properties: string) => Promise<void>;
   deleteSlideElement: (elementId: number) => Promise<void>;
+  grantEditorRights: (presentationId: number, userId: number) => Promise<void>;
+  removeEditorRights: (presentationId: number, userId: number) => Promise<void>;
   onUserConnected: (handler: (data: UserConnectedEvent) => void) => void;
   onUserDisconnected: (handler: (data: UserDisconnectedEvent) => void) => void;
   onPresentationCreated: (handler: (data: PresentationCreatedEvent) => void) => void;
@@ -50,6 +55,9 @@ interface UseSignalRReturn {
   onElementAdded: (handler: (data: ElementAddedEvent) => void) => void;
   onElementUpdated: (handler: (data: ElementUpdatedEvent) => void) => void;
   onElementDeleted: (handler: (data: ElementDeletedEvent) => void) => void;
+  onEditorGranted: (handler: (data: EditorGrantedEvent) => void) => void;
+  onEditorRemoved: (handler: (data: EditorRemovedEvent) => void) => void;
+  onUserUpdateRights: (handler: (data: UserUpdateRightsEvent) => void) => void;
   onError: (handler: (data: ErrorEvent) => void) => void;
   onForceLogout: (handler: (data: ForceLogoutEvent) => void) => void;
   onConnectedUsersUpdated: (handler: (data: ConnectedUsersListUpdatedEvent) => void) => void;
@@ -183,6 +191,24 @@ export const useSignalR = (options: UseSignalROptions = {}): UseSignalRReturn =>
     }
   }, []);
 
+  const grantEditorRights = useCallback(async (presentationId: number, userId: number) => {
+    try {
+      await signalRService.grantEditorRights(presentationId, userId);
+    } catch (error) {
+      console.error('Failed to grant editor rights:', error);
+      throw error;
+    }
+  }, []);
+
+  const removeEditorRights = useCallback(async (presentationId: number, userId: number) => {
+    try {
+      await signalRService.removeEditorRights(presentationId, userId);
+    } catch (error) {
+      console.error('Failed to remove editor rights:', error);
+      throw error;
+    }
+  }, []);
+
   const createEventHandler = (eventName: string) => {
     return (handler: (data: any) => void) => {
       const existingHandler = handlersRef.current.get(eventName);
@@ -206,6 +232,9 @@ export const useSignalR = (options: UseSignalROptions = {}): UseSignalRReturn =>
   const onElementAdded = createEventHandler(SIGNALR_EVENTS.ELEMENT_ADDED);
   const onElementUpdated = createEventHandler(SIGNALR_EVENTS.ELEMENT_UPDATED);
   const onElementDeleted = createEventHandler(SIGNALR_EVENTS.ELEMENT_DELETED);
+  const onEditorGranted = createEventHandler(SIGNALR_EVENTS.EDITOR_GRANTED);
+  const onEditorRemoved = createEventHandler(SIGNALR_EVENTS.EDITOR_REMOVED);
+  const onUserUpdateRights = createEventHandler(SIGNALR_EVENTS.USER_UPDATE_RIGHTS);
   const onError = createEventHandler(SIGNALR_EVENTS.ERROR);
   const onForceLogout = createEventHandler('forceLogout');
   const onConnectedUsersUpdated = createEventHandler(SIGNALR_EVENTS.CONNECTED_USERS_UPDATED);
@@ -223,6 +252,8 @@ export const useSignalR = (options: UseSignalROptions = {}): UseSignalRReturn =>
     addSlideElement,
     updateSlideElement,
     deleteSlideElement,
+    grantEditorRights,
+    removeEditorRights,
     onUserConnected,
     onUserDisconnected,
     onPresentationCreated,
@@ -234,6 +265,9 @@ export const useSignalR = (options: UseSignalROptions = {}): UseSignalRReturn =>
     onElementAdded,
     onElementUpdated,
     onElementDeleted,
+    onEditorGranted,
+    onEditorRemoved,
+    onUserUpdateRights,
     onError,
     onForceLogout,
     onConnectedUsersUpdated

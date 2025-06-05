@@ -38,6 +38,19 @@ namespace JointPresentationService.Application.Services
                 throw new ArgumentException("Slide not found");
             }
 
+            if (slide.Elements != null)
+            {
+                foreach (var element in slide.Elements)
+                {
+                    element.Slide = null;
+                    if (element.CreatedBy != null)
+                    {
+                        element.CreatedBy.CreatedPresentations = null;
+                        element.CreatedBy.EditorPresentations = null;
+                    }
+                }
+            }
+
             return slide;
         }
 

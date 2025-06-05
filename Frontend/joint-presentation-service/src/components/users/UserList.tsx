@@ -30,9 +30,14 @@ const UserList: React.FC<UserListProps> = ({
   const [loading, setLoading] = useState(true);
 
   const {
+    grantEditorRights,
+    removeEditorRights,
     onUserJoinedPresentation,
     onUserLeftPresentation,
-    onConnectedUsersUpdated
+    onConnectedUsersUpdated,
+    onEditorGranted,
+    onEditorRemoved,
+    onUserUpdateRights
   } = useSignalR();
 
   const loadEditors = useCallback(async () => {
@@ -96,21 +101,65 @@ const UserList: React.FC<UserListProps> = ({
     });
   }, [onConnectedUsersUpdated]);
 
-  const handleGrantEditor = async (userId: number) => {
+  useEffect(() => {
+    onEditorGranted((data) => {
+      if (data.presentationId === presentationId) {
+        setEditors(prev => {
+          const exists = prev.find(editor => editor.id === data.userId);
+          if (!exists) {
+            return [...prev, {
+              id: data.userId,
+              nickname: data.nickname,
+              createdAt: new Date().toISOString()
+            }];
+          }
+          return prev;
+        });
+      }
+    });
+  }, [onEditorGranted, presentationId]);
+
+  useEffect(() => {
+    onEditorRemoved((data) => {
+      if (data.presentationId === presentationId) {
+        setEditors(prev => prev.filter(editor => editor.id !== data.userId));
+      }
+    });
+  }, [onEditorRemoved, presentationId]);
+
+  useEffect(() => {
+    onUserUpdateRights((data) => {
+      if (data.presentationId === presentationId) {
+        setConnectedUsers(prev => 
+          prev.map(user =>
+            user.userId === data.userId
+              ? { ...user, canEdit: data.canEdit }
+              : user
+          )
+        );
+      }
+    });
+  }, [onUserUpdateRights, presentationId]);
+
+  const handleGrantEditor = async (presentationId: number, userId: number) => {
     if (!canManageRoles) return;
     
     try {
+      await grantEditorRights(presentationId, userId);
     } catch (error) {
       console.error('Failed to grant editor rights:', error);
+      throw error;
     }
   };
 
-  const handleRemoveEditor = async (userId: number) => {
+  const handleRemoveEditor = async (presentationId: number, userId: number) => {
     if (!canManageRoles) return;
     
     try {
+      await removeEditorRights(presentationId, userId);
     } catch (error) {
       console.error('Failed to remove editor rights:', error);
+      throw error;
     }
   };
 
@@ -130,6 +179,9 @@ const UserList: React.FC<UserListProps> = ({
     const existing = acc.find(u => u.userId === user.userId);
     if (!existing) {
       acc.push(user);
+    } else {
+      existing.canEdit = user.canEdit || existing.canEdit;
+      existing.isOnline = user.isOnline || existing.isOnline;
     }
     return acc;
   }, [] as ConnectedUser[]);
@@ -154,6 +206,7 @@ const UserList: React.FC<UserListProps> = ({
                 user={user}
                 isCurrentUser={user.userId === currentUserId}
                 canManageRoles={canManageRoles}
+                presentationId={presentationId}
                 onGrantEditor={handleGrantEditor}
                 onRemoveEditor={handleRemoveEditor}
               />

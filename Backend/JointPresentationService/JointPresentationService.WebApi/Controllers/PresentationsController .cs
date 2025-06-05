@@ -28,24 +28,7 @@ namespace JointPresentationService.WebApi.Controllers
             try
             {
                 var presentations = await _presentationService.GetAllPresentationsAsync();
-                var creatorIds = presentations.Select(p => p.CreatorId).Distinct().ToList();
-                var creators = await _userService.GetUsersByIdsAsync(creatorIds);
-                var creatorsDict = creators.ToDictionary(u => u.Id, u => u);
-
-                var result = presentations.Select(p => new
-                {
-                    p.Id,
-                    p.Title,
-                    p.CreatedAt,
-                    p.UpdatedAt,
-                    p.CreatorId,
-                    Creator = creatorsDict.TryGetValue(p.CreatorId, out var creator)
-                        ? new { creator.Id, creator.Nickname }
-                        : null,
-                    SlidesCount = p.Slides?.Count ?? 0
-                });
-
-                return Ok(result);
+                return Ok(presentations);
             }
             catch (Exception ex)
             {

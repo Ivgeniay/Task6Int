@@ -3,6 +3,7 @@ import {
   Presentation, 
   Slide, 
   SlideElement,
+  PresentationResponseDto
 } from '../types/api';
 
 class ApiService {
@@ -32,7 +33,23 @@ class ApiService {
   }
 
   async getPresentations(): Promise<Presentation[]> {
-    return this.fetchJson<Presentation[]>('/api/presentations');
+    const dtos = await this.fetchJson<PresentationResponseDto[]>('/api/presentations');
+    
+    return dtos.map(dto => ({
+      id: dto.id,
+      title: dto.title,
+      creatorId: dto.creatorId,
+      createdAt: dto.createdAt,
+      updatedAt: dto.updatedAt,
+      creator: dto.creator,
+      slides: dto.slides,
+      editorUsers: dto.editorUsers?.map(user => ({
+        userId: user.id,
+        presentationId: dto.id,
+        addedAt: user.createdAt,
+        user: user
+      }))
+    }));
   }
 
   async getPresentation(id: number): Promise<Presentation> {

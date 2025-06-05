@@ -5,6 +5,7 @@ import { useSignalR } from '../hooks/useSignalR';
 import SlidePanel from '../components/slides/SlidePanel';
 import SlideCanvas from '../components/slides/SlideCanvas';
 import UserList from '../components/users/UserList';
+import apiService from '../services/api';
 
 interface PresentationEditorPageProps {
   currentUserId?: number;
@@ -16,15 +17,21 @@ const PresentationEditorPage: React.FC<PresentationEditorPageProps> = ({ current
   const [presentation, setPresentation] = useState<Presentation | null>(null);
   const [slides, setSlides] = useState<Slide[]>([]);
   const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
+  const [currentSlideWithElements, setCurrentSlideWithElements] = useState<Slide | null>(null);
   const [loading, setLoading] = useState(true);
+  const [slideLoading, setSlideLoading] = useState(false);
   const [error, setError] = useState<string>('');
   const [canEdit, setCanEdit] = useState(false);
+  const [slideCache, setSlideCache] = useState<Map<number, Slide>>(new Map());
 
   const {
     joinPresentation,
     leavePresentation,
     onJoinedPresentation,
     onSlideAdded,
+    onUserUpdateRights,
+    onEditorGranted,
+    onEditorRemoved,
     onError
   } = useSignalR();
 
@@ -40,6 +47,41 @@ const PresentationEditorPage: React.FC<PresentationEditorPageProps> = ({ current
       setLoading(false);
     }
   }, [id, joinPresentation]);
+
+  const loadSlideWithElements = useCallback(async (slideIndex: number) => {
+    const slide = slides[slideIndex];
+    if (!slide) {
+      setCurrentSlideWithElements(null);
+      return;
+    }
+
+    if (slideCache.has(slide.id)) {
+      const cachedSlide = slideCache.get(slide.id)!;
+      setCurrentSlideWithElements(cachedSlide);
+      return;
+    }
+
+    try {
+      setSlideLoading(true);
+      const fullSlide = await apiService.getSlide(slide.id);
+      
+      setSlideCache(prev => new Map(prev).set(slide.id, fullSlide));
+      setCurrentSlideWithElements(fullSlide);
+    } catch (err) {
+      console.error('Failed to load slide elements:', err);
+      setCurrentSlideWithElements(slide);
+    } finally {
+      setSlideLoading(false);
+    }
+  }, [slides, slideCache]);
+
+  const invalidateSlideCache = useCallback((slideId: number) => {
+    setSlideCache(prev => {
+      const newCache = new Map(prev);
+      newCache.delete(slideId);
+      return newCache;
+    });
+  }, []);
 
   useEffect(() => {
     if (!id || !currentUserId) {
@@ -62,8 +104,33 @@ const PresentationEditorPage: React.FC<PresentationEditorPageProps> = ({ current
   useEffect(() => {
     onSlideAdded((data) => {
       setSlides(prev => [...prev, data.slide].sort((a, b) => a.order - b.order));
+      invalidateSlideCache(data.slide.id);
     });
-  }, [onSlideAdded]);
+  }, [onSlideAdded, invalidateSlideCache]);
+
+  useEffect(() => {
+    onUserUpdateRights((data) => {
+      if (data.userId === currentUserId && data.presentationId === parseInt(id!)) {
+        setCanEdit(data.canEdit);
+      }
+    });
+  }, [onUserUpdateRights, currentUserId, id]);
+
+  useEffect(() => {
+    onEditorGranted((data) => {
+      if (data.userId === currentUserId && data.presentationId === parseInt(id!)) {
+        setCanEdit(true);
+      }
+    });
+  }, [onEditorGranted, currentUserId, id]);
+
+  useEffect(() => {
+    onEditorRemoved((data) => {
+      if (data.userId === currentUserId && data.presentationId === parseInt(id!)) {
+        setCanEdit(false);
+      }
+    });
+  }, [onEditorRemoved, currentUserId, id]);
 
   useEffect(() => {
     onError((data) => {
@@ -77,12 +144,35 @@ const PresentationEditorPage: React.FC<PresentationEditorPageProps> = ({ current
     };
   }, [leavePresentation]);
 
+  useEffect(() => {
+    if (slides.length > 0) {
+      loadSlideWithElements(currentSlideIndex);
+    } else {
+      setCurrentSlideWithElements(null);
+    }
+  }, [currentSlideIndex, slides, loadSlideWithElements]);
+
   const handleSlideSelect = (slideIndex: number) => {
     setCurrentSlideIndex(slideIndex);
   };
 
   const handleBackToList = () => {
     navigate('/');
+  };
+
+  const getUserRole = (presentation: Presentation, currentUserId?: number) => {
+    if (!currentUserId) return 'Viewer';
+    if (presentation.creatorId === currentUserId) return 'Creator';
+    if (presentation.editorUsers?.some(editor => editor.userId === currentUserId)) return 'Editor';
+    return 'Viewer';
+  };
+
+  const getConnectionStatusColor = () => {
+    return canEdit ? 'bg-green-500' : 'bg-gray-400';
+  };
+
+  const getConnectionStatusText = () => {
+    return canEdit ? 'Can Edit' : 'View Only';
   };
 
   if (loading) {
@@ -127,7 +217,7 @@ const PresentationEditorPage: React.FC<PresentationEditorPageProps> = ({ current
     );
   }
 
-  const currentSlide = slides[currentSlideIndex];
+  const userRole = getUserRole(presentation, currentUserId);
 
   return (
     <div className="h-screen flex flex-col">
@@ -143,12 +233,26 @@ const PresentationEditorPage: React.FC<PresentationEditorPageProps> = ({ current
             Back
           </button>
           <h1 className="text-xl font-bold text-gray-900">{presentation.title}</h1>
+          {slideLoading && (
+            <div className="flex items-center text-sm text-gray-500">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
+              Loading slide...
+            </div>
+          )}
         </div>
         <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-2">
+            <div className={`w-2 h-2 rounded-full ${getConnectionStatusColor()}`}></div>
+            <span className="text-sm text-gray-600">{getConnectionStatusText()}</span>
+          </div>
           <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
-            canEdit ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+            userRole === 'Creator'
+              ? 'bg-blue-100 text-blue-800'
+              : userRole === 'Editor'
+              ? 'bg-green-100 text-green-800'
+              : 'bg-gray-100 text-gray-800'
           }`}>
-            {canEdit ? 'Editor' : 'Viewer'}
+            {userRole}
           </span>
           <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
             Present
@@ -168,7 +272,7 @@ const PresentationEditorPage: React.FC<PresentationEditorPageProps> = ({ current
 
         <div className="flex-1 bg-white">
           <SlideCanvas
-            slide={currentSlide}
+            slide={currentSlideWithElements ?? undefined}
             canEdit={canEdit}
             currentUserId={currentUserId}
           />
