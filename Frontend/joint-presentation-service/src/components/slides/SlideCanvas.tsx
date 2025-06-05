@@ -1,7 +1,6 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useCallback } from 'react';
 import * as fabric from 'fabric';
 import { Slide, SlideElement } from '../../types/api';
-import { useSignalR } from '../../hooks/useSignalR';
 import { useDragToCreate } from '../../hooks/useDragToCreate';
 
 interface SelectedState {
@@ -28,6 +27,7 @@ interface SlideCanvasProps {
     addElement: (element: SlideElement) => void;
     saveCanvasState: () => any;
     restoreCanvasState: (state: any) => void;
+    applyTextStyle: (property: string, value: any) => void;
   }) => void;
 }
 
@@ -212,6 +212,32 @@ const SlideCanvas: React.FC<SlideCanvasProps> = ({
     });
   }, [canEdit]);
 
+  const applyTextStyle = useCallback((property: string, value: any) => {
+    if (!fabricCanvasRef.current || !canEdit) return;
+
+    const activeObject = fabricCanvasRef.current.getActiveObject();
+    if (!activeObject || (activeObject.type !== 'textbox' && activeObject.type !== 'Textbox')) return;
+
+    let newValue = value;
+
+    if (property === 'fontWeight') {
+      const currentWeight = activeObject.get('fontWeight') || 'normal';
+      newValue = currentWeight === 'bold' ? 'normal' : 'bold';
+    } else if (property === 'fontStyle') {
+      const currentStyle = activeObject.get('fontStyle') || 'normal';
+      newValue = currentStyle === 'italic' ? 'normal' : 'italic';
+    }
+
+    activeObject.set(property, newValue);
+    fabricCanvasRef.current.renderAll();
+
+    const elementId = (activeObject as any).elementId;
+    if (elementId) {
+      const properties = activeObject.toJSON();
+      onObjectModified(elementId, properties);
+    }
+  }, [canEdit, onObjectModified]);
+
   const updateCursor = useCallback(() => {
     if (!fabricCanvasRef.current) return;
 
@@ -276,14 +302,14 @@ const SlideCanvas: React.FC<SlideCanvasProps> = ({
   }, [canEdit]);
 
   useEffect(() => {
-    if (skipElementsLoading) return;
+    if (skipElementsLoading || !slide) return;
     
-    if (slide?.elements && slide.elements.length > 0) {
+    if (slide.elements && slide.elements.length > 0) {
       loadElementsToCanvas(slide.elements);
-    } else if (slide && (!slide.elements || slide.elements.length === 0)) {
+    } else {
       clearCanvas();
     }
-  }, [slide?.id, slide?.elements, loadElementsToCanvas, clearCanvas, skipElementsLoading]);
+  }, [slide, loadElementsToCanvas, clearCanvas, skipElementsLoading]);
 
   useEffect(() => {
     if (onCanvasMethodsReady) {
@@ -292,10 +318,11 @@ const SlideCanvas: React.FC<SlideCanvasProps> = ({
         removeElement: removeElementFromCanvas,
         addElement: addElementToCanvas,
         saveCanvasState,
-        restoreCanvasState
+        restoreCanvasState,
+        applyTextStyle
       });
     }
-  }, [onCanvasMethodsReady, updateElementOnCanvas, removeElementFromCanvas, addElementToCanvas, saveCanvasState, restoreCanvasState]);
+  }, [onCanvasMethodsReady, updateElementOnCanvas, removeElementFromCanvas, addElementToCanvas, saveCanvasState, restoreCanvasState, applyTextStyle]);
 
   if (!slide) {
     return (

@@ -50,6 +50,7 @@ const PresentationEditorPage: React.FC<PresentationEditorPageProps> = ({ current
     addElement: (element: SlideElement) => void;
     saveCanvasState: () => any;
     restoreCanvasState: (state: any) => void;
+    applyTextStyle: (property: string, value: any) => void;
   } | null>(null);
 
   const {
@@ -212,7 +213,7 @@ const PresentationEditorPage: React.FC<PresentationEditorPageProps> = ({ current
     } else {
       setCurrentSlideWithElements(null);
     }
-  }, [currentSlideIndex, slides.length]);
+  }, [currentSlideIndex, slides.length, loadSlideWithElements]);
 
   const handleSlideSelect = (slideIndex: number) => {
     setCurrentSlideIndex(slideIndex);
@@ -287,12 +288,31 @@ const PresentationEditorPage: React.FC<PresentationEditorPageProps> = ({ current
     }
   };
 
+  const handleTextBold = () => {
+    if (canvasMethodsRef) {
+      canvasMethodsRef.applyTextStyle('fontWeight', 'bold');
+    }
+  };
+
+  const handleTextItalic = () => {
+    if (canvasMethodsRef) {
+      canvasMethodsRef.applyTextStyle('fontStyle', 'italic');
+    }
+  };
+
+  const handleTextFontSize = (size: number) => {
+    if (canvasMethodsRef) {
+      canvasMethodsRef.applyTextStyle('fontSize', size);
+    }
+  };
+
   const handleCanvasMethodsReady = useCallback((methods: {
     updateElement: (element: SlideElement) => void;
     removeElement: (elementId: number) => void;
     addElement: (element: SlideElement) => void;
     saveCanvasState: () => any;
     restoreCanvasState: (state: any) => void;
+    applyTextStyle: (property: string, value: any) => void;
   }) => {
     setCanvasMethodsRef(methods);
   }, []);
@@ -408,6 +428,9 @@ const PresentationEditorPage: React.FC<PresentationEditorPageProps> = ({ current
           onAddShape={handleAddShape}
           onDeleteSelected={handleDeleteSelected}
           onClearSlide={handleClearSlide}
+          onTextBold={handleTextBold}
+          onTextItalic={handleTextItalic}
+          onTextFontSize={handleTextFontSize}
         />
       )}
 

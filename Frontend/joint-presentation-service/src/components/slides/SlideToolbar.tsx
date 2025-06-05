@@ -18,6 +18,9 @@ interface SlideToolbarProps {
   onAddShape: (shapeType: 'rect' | 'circle' | 'triangle' | 'line') => void;
   onDeleteSelected: () => void;
   onClearSlide: () => void;
+  onTextBold?: () => void;
+  onTextItalic?: () => void;
+  onTextFontSize?: (size: number) => void;
 }
 
 const SlideToolbar: React.FC<SlideToolbarProps> = ({
@@ -29,7 +32,10 @@ const SlideToolbar: React.FC<SlideToolbarProps> = ({
   onAddText,
   onAddShape,
   onDeleteSelected,
-  onClearSlide
+  onClearSlide,
+  onTextBold,
+  onTextItalic,
+  onTextFontSize
 }) => {
   const [isShapesDropdownOpen, setIsShapesDropdownOpen] = useState(false);
   const [isColorsDropdownOpen, setIsColorsDropdownOpen] = useState(false);
@@ -97,14 +103,23 @@ const SlideToolbar: React.FC<SlideToolbarProps> = ({
 
   const handleFontSizeChange = (size: number) => {
     setFontSize(size);
+    if (onTextFontSize) {
+      onTextFontSize(size);
+    }
   };
 
   const handleBoldToggle = () => {
     setIsBold(!isBold);
+    if (onTextBold) {
+      onTextBold();
+    }
   };
 
   const handleItalicToggle = () => {
     setIsItalic(!isItalic);
+    if (onTextItalic) {
+      onTextItalic();
+    }
   };
 
   const isShapeToolSelected = selectedTool.startsWith('shape-');
