@@ -71,28 +71,7 @@ const SlideCanvas: React.FC<SlideCanvasProps> = ({
     if (!elementId) return;
 
     try {
-      const properties = {
-        type: object.type,
-        left: object.left,
-        top: object.top,
-        width: object.width,
-        height: object.height,
-        scaleX: object.scaleX,
-        scaleY: object.scaleY,
-        angle: object.angle,
-        fill: object.fill,
-        stroke: object.stroke,
-        strokeWidth: object.strokeWidth,
-        text: object.text,
-        fontSize: object.fontSize,
-        fontFamily: object.fontFamily,
-        radius: object.radius,
-        x1: object.x1,
-        y1: object.y1,
-        x2: object.x2,
-        y2: object.y2
-      };
-
+      const properties = object.toJSON(['elementId']);
       onObjectModified(elementId, properties);
     } catch (error) {
       console.error('Failed to update element:', error);
@@ -124,63 +103,42 @@ const SlideCanvas: React.FC<SlideCanvasProps> = ({
 
     try {
       const properties = JSON.parse(element.properties);
+      const { type, version, ...cleanProperties } = properties;
       let fabricObject: fabric.Object | null = null;
 
-      switch (properties.type) {
+      switch (type) {
+        case 'Textbox':
+        case 'textbox':
+        case 'Text':
         case 'text':
-          fabricObject = new fabric.Textbox(properties.text || 'New Text', {
-            left: properties.left || 100,
-            top: properties.top || 100,
-            fontSize: properties.fontSize || 20,
-            fontFamily: properties.fontFamily || 'Arial',
-            fill: properties.fill || '#000000',
-            width: properties.width || 200
-          });
+          fabricObject = new fabric.Textbox(properties.text || 'New Text', cleanProperties);
           break;
+        case 'Rect':
         case 'rect':
-          fabricObject = new fabric.Rect({
-            left: properties.left || 100,
-            top: properties.top || 100,
-            width: properties.width || 100,
-            height: properties.height || 100,
-            fill: properties.fill || '#3B82F6',
-            stroke: properties.stroke,
-            strokeWidth: properties.strokeWidth || 0
-          });
+          fabricObject = new fabric.Rect(cleanProperties);
           break;
+        case 'Circle':
         case 'circle':
-          fabricObject = new fabric.Circle({
-            left: properties.left || 100,
-            top: properties.top || 100,
-            radius: properties.radius || 50,
-            fill: properties.fill || '#10B981',
-            stroke: properties.stroke,
-            strokeWidth: properties.strokeWidth || 0
-          });
+          fabricObject = new fabric.Circle(cleanProperties);
           break;
+        case 'Triangle':
         case 'triangle':
-          fabricObject = new fabric.Triangle({
-            left: properties.left || 100,
-            top: properties.top || 100,
-            width: properties.width || 100,
-            height: properties.height || 87,
-            fill: properties.fill || '#F59E0B',
-            stroke: properties.stroke,
-            strokeWidth: properties.strokeWidth || 0
-          });
+          fabricObject = new fabric.Triangle(cleanProperties);
           break;
+        case 'Line':
         case 'line':
           fabricObject = new fabric.Line([
             properties.x1 || 0,
             properties.y1 || 0,
             properties.x2 || 100,
             properties.y2 || 0
-          ], {
-            left: properties.left || 100,
-            top: properties.top || 100,
-            stroke: properties.stroke || '#EF4444',
-            strokeWidth: properties.strokeWidth || 3
-          });
+          ], cleanProperties);
+          if (fabricObject && properties.left !== undefined && properties.top !== undefined) {
+            fabricObject.set({
+              left: properties.left,
+              top: properties.top
+            });
+          }
           break;
       }
 
