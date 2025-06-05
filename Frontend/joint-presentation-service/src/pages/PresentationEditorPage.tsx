@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Presentation, Slide } from '../types/api';
+import { Presentation, Slide, SlideElement } from '../types/api';
 import { useSignalR } from '../hooks/useSignalR';
 import SlidePanel from '../components/slides/SlidePanel';
 import SlideCanvas from '../components/slides/SlideCanvas';
+import SlideToolbar from '../components/slides/SlideToolbar';
 import UserList from '../components/users/UserList';
 import apiService from '../services/api';
 
@@ -11,9 +12,18 @@ interface PresentationEditorPageProps {
   currentUserId?: number;
 }
 
+interface SelectedState {
+  selectedObjects: any[];
+  hasText: boolean;
+  hasShapes: boolean;
+  isSingleText: boolean;
+  isMultiple: boolean;
+}
+
 const PresentationEditorPage: React.FC<PresentationEditorPageProps> = ({ currentUserId }) => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  
   const [presentation, setPresentation] = useState<Presentation | null>(null);
   const [slides, setSlides] = useState<Slide[]>([]);
   const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
@@ -23,15 +33,39 @@ const PresentationEditorPage: React.FC<PresentationEditorPageProps> = ({ current
   const [error, setError] = useState<string>('');
   const [canEdit, setCanEdit] = useState(false);
   const [slideCache, setSlideCache] = useState<Map<number, Slide>>(new Map());
+  
+  const [selectedTool, setSelectedTool] = useState<string>('select');
+  const [selectedColor, setSelectedColor] = useState<string>('#3B82F6');
+  const [selectedState, setSelectedState] = useState<SelectedState>({
+    selectedObjects: [],
+    hasText: false,
+    hasShapes: false,
+    isSingleText: false,
+    isMultiple: false
+  });
+
+  const [canvasMethodsRef, setCanvasMethodsRef] = useState<{
+    updateElement: (element: SlideElement) => void;
+    removeElement: (elementId: number) => void;
+    addElement: (element: SlideElement) => void;
+    saveCanvasState: () => any;
+    restoreCanvasState: (state: any) => void;
+  } | null>(null);
 
   const {
     joinPresentation,
     leavePresentation,
+    addSlideElement,
+    updateSlideElement,
+    deleteSlideElement,
     onJoinedPresentation,
     onSlideAdded,
     onUserUpdateRights,
     onEditorGranted,
     onEditorRemoved,
+    onElementAdded,
+    onElementUpdated,
+    onElementDeleted,
     onError
   } = useSignalR();
 
@@ -47,6 +81,14 @@ const PresentationEditorPage: React.FC<PresentationEditorPageProps> = ({ current
       setLoading(false);
     }
   }, [id, joinPresentation]);
+
+  const invalidateSlideCache = useCallback((slideId: number) => {
+    setSlideCache(prev => {
+      const newCache = new Map(prev);
+      newCache.delete(slideId);
+      return newCache;
+    });
+  }, []);
 
   const loadSlideWithElements = useCallback(async (slideIndex: number) => {
     const slide = slides[slideIndex];
@@ -75,20 +117,11 @@ const PresentationEditorPage: React.FC<PresentationEditorPageProps> = ({ current
     }
   }, [slides, slideCache]);
 
-  const invalidateSlideCache = useCallback((slideId: number) => {
-    setSlideCache(prev => {
-      const newCache = new Map(prev);
-      newCache.delete(slideId);
-      return newCache;
-    });
-  }, []);
-
   useEffect(() => {
     if (!id || !currentUserId) {
       navigate('/');
       return;
     }
-
     loadPresentationData();
   }, [id, currentUserId, navigate, loadPresentationData]);
 
@@ -133,6 +166,35 @@ const PresentationEditorPage: React.FC<PresentationEditorPageProps> = ({ current
   }, [onEditorRemoved, currentUserId, id]);
 
   useEffect(() => {
+    onElementAdded((data) => {
+      if (data.slideId === currentSlideWithElements?.id && canvasMethodsRef) {
+        canvasMethodsRef.addElement(data.element);
+        invalidateSlideCache(data.slideId);
+      }
+    });
+  }, [onElementAdded, currentSlideWithElements?.id, canvasMethodsRef, invalidateSlideCache]);
+
+  useEffect(() => {
+    onElementUpdated((data) => {
+      if (currentSlideWithElements?.elements?.some(el => el.id === data.elementId) && canvasMethodsRef) {
+        canvasMethodsRef.updateElement(data.element);
+        invalidateSlideCache(currentSlideWithElements.id);
+      }
+    });
+  }, [onElementUpdated, currentSlideWithElements, canvasMethodsRef, invalidateSlideCache]);
+
+  useEffect(() => {
+    onElementDeleted((data) => {
+      if (currentSlideWithElements?.elements?.some(el => el.id === data.elementId) && canvasMethodsRef) {
+        canvasMethodsRef.removeElement(data.elementId);
+        if (currentSlideWithElements) {
+          invalidateSlideCache(currentSlideWithElements.id);
+        }
+      }
+    });
+  }, [onElementDeleted, currentSlideWithElements, canvasMethodsRef, invalidateSlideCache]);
+
+  useEffect(() => {
     onError((data) => {
       setError(data.message);
     });
@@ -145,12 +207,12 @@ const PresentationEditorPage: React.FC<PresentationEditorPageProps> = ({ current
   }, [leavePresentation]);
 
   useEffect(() => {
-    if (slides.length > 0) {
+    if (slides.length > 0 && currentSlideIndex >= 0) {
       loadSlideWithElements(currentSlideIndex);
     } else {
       setCurrentSlideWithElements(null);
     }
-  }, [currentSlideIndex, slides, loadSlideWithElements]);
+  }, [currentSlideIndex, slides.length]);
 
   const handleSlideSelect = (slideIndex: number) => {
     setCurrentSlideIndex(slideIndex);
@@ -159,6 +221,81 @@ const PresentationEditorPage: React.FC<PresentationEditorPageProps> = ({ current
   const handleBackToList = () => {
     navigate('/');
   };
+
+  const handleToolSelect = (tool: string) => {
+    setSelectedTool(tool);
+  };
+
+  const handleColorChange = (color: string) => {
+    setSelectedColor(color);
+  };
+
+  const handleAddText = () => {
+    setSelectedTool('text');
+  };
+
+  const handleAddShape = (shapeType: 'rect' | 'circle' | 'triangle' | 'line') => {
+    setSelectedTool(`shape-${shapeType}`);
+  };
+
+  const handleObjectCreate = useCallback(async (properties: any) => {
+    if (!canEdit || !currentSlideWithElements) return;
+
+    try {
+      await addSlideElement(currentSlideWithElements.id, JSON.stringify(properties));
+    } catch (error) {
+      console.error('Failed to create element:', error);
+    }
+  }, [canEdit, currentSlideWithElements, addSlideElement]);
+
+  const handleObjectModified = useCallback(async (elementId: number, properties: any) => {
+    if (!canEdit) return;
+
+    try {
+      await updateSlideElement(elementId, JSON.stringify(properties));
+    } catch (error) {
+      console.error('Failed to update element:', error);
+    }
+  }, [canEdit, updateSlideElement]);
+
+  const handleDeleteSelected = async () => {
+    if (!canEdit || selectedState.selectedObjects.length === 0) return;
+
+    try {
+      for (const obj of selectedState.selectedObjects) {
+        if (obj.elementId) {
+          await deleteSlideElement(obj.elementId);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to delete elements:', error);
+    }
+  };
+
+  const handleClearSlide = async () => {
+    if (!canEdit || !currentSlideWithElements?.elements) return;
+
+    const confirmClear = window.confirm('Are you sure you want to clear all elements from this slide?');
+    if (!confirmClear) return;
+
+    try {
+      for (const element of currentSlideWithElements.elements) {
+        await deleteSlideElement(element.id);
+      }
+    } catch (error) {
+      console.error('Failed to clear slide:', error);
+    }
+  };
+
+  const handleCanvasMethodsReady = useCallback((methods: {
+    updateElement: (element: SlideElement) => void;
+    removeElement: (elementId: number) => void;
+    addElement: (element: SlideElement) => void;
+    saveCanvasState: () => any;
+    restoreCanvasState: (state: any) => void;
+  }) => {
+    setCanvasMethodsRef(methods);
+  }, []);
 
   const getUserRole = (presentation: Presentation, currentUserId?: number) => {
     if (!currentUserId) return 'Viewer';
@@ -260,6 +397,20 @@ const PresentationEditorPage: React.FC<PresentationEditorPageProps> = ({ current
         </div>
       </div>
 
+      {canEdit && (
+        <SlideToolbar
+          selectedTool={selectedTool}
+          selectedState={selectedState}
+          selectedColor={selectedColor}
+          onToolSelect={handleToolSelect}
+          onColorChange={handleColorChange}
+          onAddText={handleAddText}
+          onAddShape={handleAddShape}
+          onDeleteSelected={handleDeleteSelected}
+          onClearSlide={handleClearSlide}
+        />
+      )}
+
       <div className="flex-1 flex overflow-hidden">
         <div className="w-64 bg-gray-50 border-r">
           <SlidePanel
@@ -275,6 +426,12 @@ const PresentationEditorPage: React.FC<PresentationEditorPageProps> = ({ current
             slide={currentSlideWithElements ?? undefined}
             canEdit={canEdit}
             currentUserId={currentUserId}
+            selectedTool={selectedTool}
+            selectedColor={selectedColor}
+            onObjectCreate={handleObjectCreate}
+            onObjectModified={handleObjectModified}
+            onSelectionChanged={setSelectedState}
+            onCanvasMethodsReady={handleCanvasMethodsReady}
           />
         </div>
 

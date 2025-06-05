@@ -3,28 +3,64 @@ import * as fabric from 'fabric';
 import { Slide, SlideElement } from '../../types/api';
 import { useSignalR } from '../../hooks/useSignalR';
 import { useDragToCreate } from '../../hooks/useDragToCreate';
-import SlideToolbar from './SlideToolbar';
+
+interface SelectedState {
+  selectedObjects: any[];
+  hasText: boolean;
+  hasShapes: boolean;
+  isSingleText: boolean;
+  isMultiple: boolean;
+}
 
 interface SlideCanvasProps {
   slide?: Slide;
   canEdit: boolean;
   currentUserId?: number;
+  selectedTool: string;
+  selectedColor: string;
+  skipElementsLoading?: boolean;
+  onObjectCreate: (properties: any) => void;
+  onObjectModified: (elementId: number, properties: any) => void;
+  onSelectionChanged: (selectedState: SelectedState) => void;
+  onCanvasMethodsReady?: (methods: {
+    updateElement: (element: SlideElement) => void;
+    removeElement: (elementId: number) => void;
+    addElement: (element: SlideElement) => void;
+    saveCanvasState: () => any;
+    restoreCanvasState: (state: any) => void;
+  }) => void;
 }
 
-const SlideCanvas: React.FC<SlideCanvasProps> = ({ slide, canEdit, currentUserId }) => {
+const SlideCanvas: React.FC<SlideCanvasProps> = ({ 
+  slide, 
+  canEdit, 
+  currentUserId,
+  selectedTool,
+  selectedColor,
+  skipElementsLoading = false,
+  onObjectCreate,
+  onObjectModified,
+  onSelectionChanged,
+  onCanvasMethodsReady
+}) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fabricCanvasRef = useRef<fabric.Canvas | null>(null);
-  const [selectedTool, setSelectedTool] = useState<string>('select');
-  const [selectedColor, setSelectedColor] = useState<string>('#3B82F6');
 
-  const {
-    addSlideElement,
-    updateSlideElement,
-    deleteSlideElement,
-    onElementAdded,
-    onElementUpdated,
-    onElementDeleted
-  } = useSignalR();
+  const updateSelectionState = useCallback((selected: fabric.Object[]) => {
+    const selectedObjects = selected as any[];
+    const hasText = selectedObjects.some(obj => obj.type === 'textbox' || obj.type === 'text');
+    const hasShapes = selectedObjects.some(obj => ['rect', 'circle', 'triangle', 'line'].includes(obj.type));
+    const isSingleText = selectedObjects.length === 1 && hasText;
+    const isMultiple = selectedObjects.length > 1;
+
+    onSelectionChanged({
+      selectedObjects,
+      hasText,
+      hasShapes,
+      isSingleText,
+      isMultiple
+    });
+  }, [onSelectionChanged]);
 
   const handleObjectModified = useCallback(async (e: fabric.ModifiedEvent) => {
     if (!canEdit || !slide || !e.target) return;
@@ -35,7 +71,7 @@ const SlideCanvas: React.FC<SlideCanvasProps> = ({ slide, canEdit, currentUserId
     if (!elementId) return;
 
     try {
-      const properties = JSON.stringify({
+      const properties = {
         type: object.type,
         left: object.left,
         top: object.top,
@@ -55,13 +91,25 @@ const SlideCanvas: React.FC<SlideCanvasProps> = ({ slide, canEdit, currentUserId
         y1: object.y1,
         x2: object.x2,
         y2: object.y2
-      });
+      };
 
-      await updateSlideElement(elementId, properties);
+      onObjectModified(elementId, properties);
     } catch (error) {
       console.error('Failed to update element:', error);
     }
-  }, [canEdit, slide, updateSlideElement]);
+  }, [canEdit, slide, onObjectModified]);
+
+  const handleSelectionCreated = useCallback((e: any) => {
+    updateSelectionState(e.selected || []);
+  }, [updateSelectionState]);
+
+  const handleSelectionUpdated = useCallback((e: any) => {
+    updateSelectionState(e.selected || []);
+  }, [updateSelectionState]);
+
+  const handleSelectionCleared = useCallback(() => {
+    updateSelectionState([]);
+  }, [updateSelectionState]);
 
   const clearCanvas = useCallback(() => {
     if (fabricCanvasRef.current) {
@@ -157,7 +205,7 @@ const SlideCanvas: React.FC<SlideCanvasProps> = ({ slide, canEdit, currentUserId
     });
   }, [clearCanvas, addElementToCanvas]);
 
-  const updateElementOnCanvas = (element: SlideElement) => {
+  const updateElementOnCanvas = useCallback((element: SlideElement) => {
     if (!fabricCanvasRef.current) return;
 
     const objects = fabricCanvasRef.current.getObjects();
@@ -166,15 +214,16 @@ const SlideCanvas: React.FC<SlideCanvasProps> = ({ slide, canEdit, currentUserId
     if (fabricObject) {
       try {
         const properties = JSON.parse(element.properties);
-        fabricObject.set(properties);
+        const { type, ...updateProperties } = properties;
+        fabricObject.set(updateProperties);
         fabricCanvasRef.current.renderAll();
       } catch (error) {
         console.error('Error updating element:', error);
       }
     }
-  };
+  }, []);
 
-  const removeElementFromCanvas = (elementId: number) => {
+  const removeElementFromCanvas = useCallback((elementId: number) => {
     if (!fabricCanvasRef.current) return;
 
     const objects = fabricCanvasRef.current.getObjects();
@@ -183,23 +232,51 @@ const SlideCanvas: React.FC<SlideCanvasProps> = ({ slide, canEdit, currentUserId
     if (fabricObject) {
       fabricCanvasRef.current.remove(fabricObject);
     }
-  };
+  }, []);
 
-  const handleObjectCreate = useCallback(async (properties: any) => {
-    if (!canEdit || !slide) return;
+  const saveCanvasState = useCallback(() => {
+    if (!fabricCanvasRef.current) return null;
+    return fabricCanvasRef.current.toJSON();
+  }, []);
 
-    try {
-      await addSlideElement(slide.id, JSON.stringify(properties));
-    } catch (error) {
-      console.error('Failed to create element:', error);
+  const restoreCanvasState = useCallback((state: any) => {
+    if (!fabricCanvasRef.current || !state) return;
+    
+    fabricCanvasRef.current.loadFromJSON(state, () => {
+      if (fabricCanvasRef.current) {
+        const objects = fabricCanvasRef.current.getObjects();
+        objects.forEach((obj: any) => {
+          obj.selectable = canEdit;
+          obj.evented = canEdit;
+        });
+        fabricCanvasRef.current.renderAll();
+      }
+    });
+  }, [canEdit]);
+
+  const updateCursor = useCallback(() => {
+    if (!fabricCanvasRef.current) return;
+
+    const isShapeTool = ['shape-rect', 'shape-circle', 'shape-triangle', 'shape-line'].includes(selectedTool);
+    const isTextTool = selectedTool === 'text';
+
+    if (isShapeTool) {
+      fabricCanvasRef.current.defaultCursor = 'crosshair';
+      fabricCanvasRef.current.hoverCursor = 'crosshair';
+    } else if (isTextTool) {
+      fabricCanvasRef.current.defaultCursor = 'text';
+      fabricCanvasRef.current.hoverCursor = 'text';
+    } else {
+      fabricCanvasRef.current.defaultCursor = 'default';
+      fabricCanvasRef.current.hoverCursor = 'move';
     }
-  }, [canEdit, slide, addSlideElement]);
+  }, [selectedTool]);
 
   useDragToCreate({
     canvas: fabricCanvasRef.current,
     selectedTool,
     selectedColor,
-    onObjectCreate: handleObjectCreate
+    onObjectCreate
   });
 
   useEffect(() => {
@@ -215,12 +292,18 @@ const SlideCanvas: React.FC<SlideCanvasProps> = ({ slide, canEdit, currentUserId
     fabricCanvasRef.current = canvas;
 
     canvas.on('object:modified', handleObjectModified);
-    canvas.on('selection:cleared', () => setSelectedTool('select'));
+    canvas.on('selection:created', handleSelectionCreated);
+    canvas.on('selection:updated', handleSelectionUpdated);
+    canvas.on('selection:cleared', handleSelectionCleared);
 
     return () => {
       canvas.dispose();
     };
-  }, [handleObjectModified, canEdit]);
+  }, [handleObjectModified, handleSelectionCreated, handleSelectionUpdated, handleSelectionCleared, canEdit]);
+
+  useEffect(() => {
+    updateCursor();
+  }, [updateCursor]);
 
   useEffect(() => {
     if (fabricCanvasRef.current) {
@@ -235,49 +318,26 @@ const SlideCanvas: React.FC<SlideCanvasProps> = ({ slide, canEdit, currentUserId
   }, [canEdit]);
 
   useEffect(() => {
-    if (slide?.elements) {
+    if (skipElementsLoading) return;
+    
+    if (slide?.elements && slide.elements.length > 0) {
       loadElementsToCanvas(slide.elements);
-    } else {
+    } else if (slide && (!slide.elements || slide.elements.length === 0)) {
       clearCanvas();
     }
-  }, [slide, loadElementsToCanvas, clearCanvas]);
+  }, [slide?.id, slide?.elements, loadElementsToCanvas, clearCanvas, skipElementsLoading]);
 
   useEffect(() => {
-    onElementAdded((data) => {
-      if (data.slideId === slide?.id) {
-        addElementToCanvas(data.element);
-      }
-    });
-  }, [onElementAdded, slide?.id, addElementToCanvas]);
-
-  useEffect(() => {
-    onElementUpdated((data) => {
-      updateElementOnCanvas(data.element);
-    });
-  }, [onElementUpdated]);
-
-  useEffect(() => {
-    onElementDeleted((data) => {
-      removeElementFromCanvas(data.elementId);
-    });
-  }, [onElementDeleted]);
-
-  const handleToolSelect = (tool: string) => {
-    setSelectedTool(tool);
-  };
-
-  const handleDeleteSelected = async () => {
-    if (!canEdit || !fabricCanvasRef.current) return;
-
-    const activeObject = fabricCanvasRef.current.getActiveObject();
-    if (activeObject && (activeObject as any).elementId) {
-      try {
-        await deleteSlideElement((activeObject as any).elementId);
-      } catch (error) {
-        console.error('Failed to delete element:', error);
-      }
+    if (onCanvasMethodsReady) {
+      onCanvasMethodsReady({
+        updateElement: updateElementOnCanvas,
+        removeElement: removeElementFromCanvas,
+        addElement: addElementToCanvas,
+        saveCanvasState,
+        restoreCanvasState
+      });
     }
-  };
+  }, [onCanvasMethodsReady, updateElementOnCanvas, removeElementFromCanvas, addElementToCanvas, saveCanvasState, restoreCanvasState]);
 
   if (!slide) {
     return (
@@ -293,24 +353,12 @@ const SlideCanvas: React.FC<SlideCanvasProps> = ({ slide, canEdit, currentUserId
   }
 
   return (
-    <div className="h-full flex flex-col">
-      {canEdit && (
-        <SlideToolbar
-          selectedTool={selectedTool}
-          onToolSelect={handleToolSelect}
-          onAddText={() => setSelectedTool('text')}
-          onAddShape={(shapeType) => setSelectedTool(`shape-${shapeType}`)}
-          onDeleteSelected={handleDeleteSelected}
+    <div className="h-full flex items-center justify-center bg-gray-50 p-4">
+      <div className="bg-white shadow-lg rounded-lg overflow-hidden">
+        <canvas
+          ref={canvasRef}
+          className="block"
         />
-      )}
-      
-      <div className="flex-1 flex items-center justify-center bg-gray-50 p-4">
-        <div className="bg-white shadow-lg rounded-lg overflow-hidden">
-          <canvas
-            ref={canvasRef}
-            className="block"
-          />
-        </div>
       </div>
     </div>
   );

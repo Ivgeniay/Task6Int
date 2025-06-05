@@ -11,7 +11,9 @@ interface SelectedState {
 interface SlideToolbarProps {
   selectedTool: string;
   selectedState: SelectedState;
+  selectedColor: string;
   onToolSelect: (tool: string) => void;
+  onColorChange: (color: string) => void;
   onAddText: () => void;
   onAddShape: (shapeType: 'rect' | 'circle' | 'triangle' | 'line') => void;
   onDeleteSelected: () => void;
@@ -21,7 +23,9 @@ interface SlideToolbarProps {
 const SlideToolbar: React.FC<SlideToolbarProps> = ({
   selectedTool,
   selectedState,
+  selectedColor,
   onToolSelect,
+  onColorChange,
   onAddText,
   onAddShape,
   onDeleteSelected,
@@ -29,7 +33,10 @@ const SlideToolbar: React.FC<SlideToolbarProps> = ({
 }) => {
   const [isShapesDropdownOpen, setIsShapesDropdownOpen] = useState(false);
   const [isColorsDropdownOpen, setIsColorsDropdownOpen] = useState(false);
-  const [selectedColor, setSelectedColor] = useState('#3B82F6');
+  const [fontSize, setFontSize] = useState(20);
+  const [isBold, setIsBold] = useState(false);
+  const [isItalic, setIsItalic] = useState(false);
+  
   const shapesDropdownRef = useRef<HTMLDivElement>(null);
   const colorsDropdownRef = useRef<HTMLDivElement>(null);
 
@@ -80,13 +87,24 @@ const SlideToolbar: React.FC<SlideToolbarProps> = ({
 
   const handleShapeSelect = (shapeType: 'rect' | 'circle' | 'triangle' | 'line') => {
     onAddShape(shapeType);
-    onToolSelect(`shape-${shapeType}`);
     setIsShapesDropdownOpen(false);
   };
 
   const handleColorSelect = (color: string) => {
-    setSelectedColor(color);
+    onColorChange(color);
     setIsColorsDropdownOpen(false);
+  };
+
+  const handleFontSizeChange = (size: number) => {
+    setFontSize(size);
+  };
+
+  const handleBoldToggle = () => {
+    setIsBold(!isBold);
+  };
+
+  const handleItalicToggle = () => {
+    setIsItalic(!isItalic);
   };
 
   const isShapeToolSelected = selectedTool.startsWith('shape-');
@@ -207,14 +225,20 @@ const SlideToolbar: React.FC<SlideToolbarProps> = ({
       <div className="text-xs font-medium text-gray-500 mr-2">Text:</div>
       
       <button
-        className="flex items-center justify-center w-8 h-8 rounded text-sm font-bold transition-all duration-200 text-gray-600 hover:bg-gray-100"
+        onClick={handleBoldToggle}
+        className={`flex items-center justify-center w-8 h-8 rounded text-sm font-bold transition-all duration-200 ${
+          isBold ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:bg-gray-100'
+        }`}
         title="Bold"
       >
         B
       </button>
       
       <button
-        className="flex items-center justify-center w-8 h-8 rounded text-sm font-medium italic transition-all duration-200 text-gray-600 hover:bg-gray-100"
+        onClick={handleItalicToggle}
+        className={`flex items-center justify-center w-8 h-8 rounded text-sm font-medium italic transition-all duration-200 ${
+          isItalic ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:bg-gray-100'
+        }`}
         title="Italic"
       >
         I
@@ -223,7 +247,8 @@ const SlideToolbar: React.FC<SlideToolbarProps> = ({
       <select 
         className="text-xs border border-gray-300 rounded px-2 py-1 ml-2"
         title="Font Size"
-        defaultValue={20}
+        value={fontSize}
+        onChange={(e) => handleFontSizeChange(parseInt(e.target.value))}
       >
         {fontSizes.map(size => (
           <option key={size} value={size}>{size}px</option>
