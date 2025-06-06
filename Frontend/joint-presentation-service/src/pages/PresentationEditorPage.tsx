@@ -17,7 +17,9 @@ interface SelectedState {
   hasText: boolean;
   hasShapes: boolean;
   isSingleText: boolean;
+  isSingleShape: boolean;
   isMultiple: boolean;
+  selectedObjectType: 'text' | 'shape' | 'mixed' | 'none';
 }
 
 const PresentationEditorPage: React.FC<PresentationEditorPageProps> = ({ currentUserId }) => {
@@ -41,7 +43,9 @@ const PresentationEditorPage: React.FC<PresentationEditorPageProps> = ({ current
     hasText: false,
     hasShapes: false,
     isSingleText: false,
-    isMultiple: false
+    isSingleShape: false,
+    isMultiple: false,
+    selectedObjectType: 'none'
   });
 
   const [canvasMethodsRef, setCanvasMethodsRef] = useState<{
@@ -51,6 +55,7 @@ const PresentationEditorPage: React.FC<PresentationEditorPageProps> = ({ current
     saveCanvasState: () => any;
     restoreCanvasState: (state: any) => void;
     applyTextStyle: (property: string, value: any) => void;
+    applyColorToSelected: () => void;
   } | null>(null);
 
   const {
@@ -306,6 +311,24 @@ const PresentationEditorPage: React.FC<PresentationEditorPageProps> = ({ current
     }
   };
 
+  const handleTextUnderline = () => {
+    if (canvasMethodsRef) {
+      canvasMethodsRef.applyTextStyle('underline', true);
+    }
+  };
+
+  const handleTextStrikethrough = () => {
+    if (canvasMethodsRef) {
+      canvasMethodsRef.applyTextStyle('linethrough', true);
+    }
+  };
+
+  const handleApplyColorToSelected = () => {
+    if (canvasMethodsRef) {
+      canvasMethodsRef.applyColorToSelected();
+    }
+  };
+
   const handleCanvasMethodsReady = useCallback((methods: {
     updateElement: (element: SlideElement) => void;
     removeElement: (elementId: number) => void;
@@ -313,6 +336,7 @@ const PresentationEditorPage: React.FC<PresentationEditorPageProps> = ({ current
     saveCanvasState: () => any;
     restoreCanvasState: (state: any) => void;
     applyTextStyle: (property: string, value: any) => void;
+    applyColorToSelected: () => void;
   }) => {
     setCanvasMethodsRef(methods);
   }, []);
@@ -430,7 +454,10 @@ const PresentationEditorPage: React.FC<PresentationEditorPageProps> = ({ current
           onClearSlide={handleClearSlide}
           onTextBold={handleTextBold}
           onTextItalic={handleTextItalic}
+          onTextUnderline={handleTextUnderline}
+          onTextStrikethrough={handleTextStrikethrough}
           onTextFontSize={handleTextFontSize}
+          onApplyColorToSelected={handleApplyColorToSelected}
         />
       )}
 

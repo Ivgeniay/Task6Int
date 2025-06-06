@@ -8,7 +8,9 @@ interface SelectedState {
   hasText: boolean;
   hasShapes: boolean;
   isSingleText: boolean;
+  isSingleShape: boolean;
   isMultiple: boolean;
+  selectedObjectType: 'text' | 'shape' | 'mixed' | 'none';
 }
 
 interface SlideCanvasProps {
@@ -28,6 +30,7 @@ interface SlideCanvasProps {
     saveCanvasState: () => any;
     restoreCanvasState: (state: any) => void;
     applyTextStyle: (property: string, value: any) => void;
+    applyColorToSelected: () => void;
   }) => void;
 }
 
@@ -48,17 +51,31 @@ const SlideCanvas: React.FC<SlideCanvasProps> = ({
 
   const updateSelectionState = useCallback((selected: fabric.Object[]) => {
     const selectedObjects = selected as any[];
-    const hasText = selectedObjects.some(obj => obj.type === 'textbox' || obj.type === 'text');
-    const hasShapes = selectedObjects.some(obj => ['rect', 'circle', 'triangle', 'line'].includes(obj.type));
+    const hasText = selectedObjects.some(obj => obj.type === 'textbox' || obj.type === 'Textbox');
+    const hasShapes = selectedObjects.some(obj => ['rect', 'circle', 'triangle', 'line', 'Rect', 'Circle', 'Triangle', 'Line'].includes(obj.type));
     const isSingleText = selectedObjects.length === 1 && hasText;
+    const isSingleShape = selectedObjects.length === 1 && hasShapes;
     const isMultiple = selectedObjects.length > 1;
+
+    let selectedObjectType: 'text' | 'shape' | 'mixed' | 'none' = 'none';
+    if (selectedObjects.length === 0) {
+      selectedObjectType = 'none';
+    } else if (hasText && hasShapes) {
+      selectedObjectType = 'mixed';
+    } else if (hasText) {
+      selectedObjectType = 'text';
+    } else if (hasShapes) {
+      selectedObjectType = 'shape';
+    }
 
     onSelectionChanged({
       selectedObjects,
       hasText,
       hasShapes,
       isSingleText,
-      isMultiple
+      isSingleShape,
+      isMultiple,
+      selectedObjectType
     });
   }, [onSelectionChanged]);
 
@@ -226,6 +243,12 @@ const SlideCanvas: React.FC<SlideCanvasProps> = ({
     } else if (property === 'fontStyle') {
       const currentStyle = activeObject.get('fontStyle') || 'normal';
       newValue = currentStyle === 'italic' ? 'normal' : 'italic';
+    } else if (property === 'underline') {
+      const currentUnderline = activeObject.get('underline') || false;
+      newValue = !currentUnderline;
+    } else if (property === 'linethrough') {
+      const currentLinethrough = activeObject.get('linethrough') || false;
+      newValue = !currentLinethrough;
     }
 
     activeObject.set(property, newValue);
@@ -237,6 +260,22 @@ const SlideCanvas: React.FC<SlideCanvasProps> = ({
       onObjectModified(elementId, properties);
     }
   }, [canEdit, onObjectModified]);
+
+  const applyColorToSelected = useCallback(() => {
+    if (!fabricCanvasRef.current || !canEdit) return;
+
+    const activeObject = fabricCanvasRef.current.getActiveObject();
+    if (!activeObject) return;
+
+    activeObject.set('fill', selectedColor);
+    fabricCanvasRef.current.renderAll();
+
+    const elementId = (activeObject as any).elementId;
+    if (elementId) {
+      const properties = activeObject.toJSON();
+      onObjectModified(elementId, properties);
+    }
+  }, [canEdit, selectedColor, onObjectModified]);
 
   const updateCursor = useCallback(() => {
     if (!fabricCanvasRef.current) return;
@@ -319,10 +358,11 @@ const SlideCanvas: React.FC<SlideCanvasProps> = ({
         addElement: addElementToCanvas,
         saveCanvasState,
         restoreCanvasState,
-        applyTextStyle
+        applyTextStyle,
+        applyColorToSelected
       });
     }
-  }, [onCanvasMethodsReady, updateElementOnCanvas, removeElementFromCanvas, addElementToCanvas, saveCanvasState, restoreCanvasState, applyTextStyle]);
+  }, [onCanvasMethodsReady, updateElementOnCanvas, removeElementFromCanvas, addElementToCanvas, saveCanvasState, restoreCanvasState, applyTextStyle, applyColorToSelected]);
 
   if (!slide) {
     return (

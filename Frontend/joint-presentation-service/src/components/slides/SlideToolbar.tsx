@@ -5,7 +5,9 @@ interface SelectedState {
   hasText: boolean;
   hasShapes: boolean;
   isSingleText: boolean;
+  isSingleShape: boolean;
   isMultiple: boolean;
+  selectedObjectType: 'text' | 'shape' | 'mixed' | 'none';
 }
 
 interface SlideToolbarProps {
@@ -20,7 +22,10 @@ interface SlideToolbarProps {
   onClearSlide: () => void;
   onTextBold?: () => void;
   onTextItalic?: () => void;
+  onTextUnderline?: () => void;
+  onTextStrikethrough?: () => void;
   onTextFontSize?: (size: number) => void;
+  onApplyColorToSelected?: () => void;
 }
 
 const SlideToolbar: React.FC<SlideToolbarProps> = ({
@@ -35,13 +40,18 @@ const SlideToolbar: React.FC<SlideToolbarProps> = ({
   onClearSlide,
   onTextBold,
   onTextItalic,
-  onTextFontSize
+  onTextUnderline,
+  onTextStrikethrough,
+  onTextFontSize,
+  onApplyColorToSelected
 }) => {
   const [isShapesDropdownOpen, setIsShapesDropdownOpen] = useState(false);
   const [isColorsDropdownOpen, setIsColorsDropdownOpen] = useState(false);
   const [fontSize, setFontSize] = useState(20);
   const [isBold, setIsBold] = useState(false);
   const [isItalic, setIsItalic] = useState(false);
+  const [isUnderline, setIsUnderline] = useState(false);
+  const [isStrikethrough, setIsStrikethrough] = useState(false);
   
   const shapesDropdownRef = useRef<HTMLDivElement>(null);
   const colorsDropdownRef = useRef<HTMLDivElement>(null);
@@ -98,7 +108,24 @@ const SlideToolbar: React.FC<SlideToolbarProps> = ({
 
   const handleColorSelect = (color: string) => {
     onColorChange(color);
+    if (selectedState.selectedObjectType !== 'none' && onApplyColorToSelected) {
+      onApplyColorToSelected();
+    }
     setIsColorsDropdownOpen(false);
+  };
+
+  const handleUnderlineToggle = () => {
+    setIsUnderline(!isUnderline);
+    if (onTextUnderline) {
+      onTextUnderline();
+    }
+  };
+
+  const handleStrikethroughToggle = () => {
+    setIsStrikethrough(!isStrikethrough);
+    if (onTextStrikethrough) {
+      onTextStrikethrough();
+    }
   };
 
   const handleFontSizeChange = (size: number) => {
@@ -258,6 +285,26 @@ const SlideToolbar: React.FC<SlideToolbarProps> = ({
       >
         I
       </button>
+
+      <button
+        onClick={handleUnderlineToggle}
+        className={`flex items-center justify-center w-8 h-8 rounded text-sm font-medium underline transition-all duration-200 ${
+          isUnderline ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:bg-gray-100'
+        }`}
+        title="Underline"
+      >
+        U
+      </button>
+
+      <button
+        onClick={handleStrikethroughToggle}
+        className={`flex items-center justify-center w-8 h-8 rounded text-sm font-medium line-through transition-all duration-200 ${
+          isStrikethrough ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:bg-gray-100'
+        }`}
+        title="Strikethrough"
+      >
+        S
+      </button>
       
       <select 
         className="text-xs border border-gray-300 rounded px-2 py-1 ml-2"
@@ -303,7 +350,7 @@ const SlideToolbar: React.FC<SlideToolbarProps> = ({
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-1">
           {renderBasicTools()}
-          {selectedState.isSingleText && renderTextTools()}
+          {(selectedState.selectedObjectType === 'text' || selectedState.isSingleText) && renderTextTools()}
         </div>
         
         <div className="flex items-center space-x-4">
