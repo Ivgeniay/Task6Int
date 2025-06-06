@@ -10,6 +10,7 @@ import {
   UserJoinedPresentationEvent,
   UserLeftPresentationEvent,
   SlideAddedEvent,
+  SlideDeletedEvent,
   ElementAddedEvent,
   ElementUpdatedEvent,
   ElementDeletedEvent,
@@ -17,8 +18,7 @@ import {
   EditorGrantedEvent,
   EditorRemovedEvent,
   UserUpdateRightsEvent,
-  ErrorEvent,
-  SlideDeletedEvent
+  ErrorEvent
 } from '../types/signalr';
 import signalRService from '../services/signalr';
 
@@ -40,6 +40,7 @@ interface UseSignalRReturn {
   joinPresentation: (presentationId: number) => Promise<void>;
   leavePresentation: () => Promise<void>;
   addSlide: () => Promise<void>;
+  deleteSlide: (slideId: number) => Promise<void>;
   addSlideElement: (slideId: number, properties: string) => Promise<void>;
   updateSlideElement: (elementId: number, properties: string) => Promise<void>;
   deleteSlideElement: (elementId: number) => Promise<void>;
@@ -166,6 +167,15 @@ export const useSignalR = (options: UseSignalROptions = {}): UseSignalRReturn =>
     }
   }, []);
 
+  const deleteSlide = useCallback(async (slideId: number) => {
+    try {
+      await signalRService.deleteSlide(slideId);
+    } catch (error) {
+      console.error('Failed to delete slide:', error);
+      throw error;
+    }
+  }, []);
+
   const addSlideElement = useCallback(async (slideId: number, properties: string) => {
     try {
       await signalRService.addSlideElement(slideId, properties);
@@ -252,6 +262,7 @@ export const useSignalR = (options: UseSignalROptions = {}): UseSignalRReturn =>
     joinPresentation,
     leavePresentation,
     addSlide,
+    deleteSlide,
     addSlideElement,
     updateSlideElement,
     deleteSlideElement,

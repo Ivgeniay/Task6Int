@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useCallback } from 'react';
+import React, { useEffect, useRef, useCallback, useState } from 'react';
 import * as fabric from 'fabric';
 import { Slide, SlideElement } from '../../types/api';
 import { useDragToCreate } from '../../hooks/useDragToCreate';
@@ -11,6 +11,12 @@ interface SelectedState {
   isSingleShape: boolean;
   isMultiple: boolean;
   selectedObjectType: 'text' | 'shape' | 'mixed' | 'none';
+}
+
+interface PendingCreatedObject {
+  fabricObject: fabric.Object;
+  properties: string;
+  tempId: number;
 }
 
 interface SlideCanvasProps {
@@ -31,6 +37,8 @@ interface SlideCanvasProps {
     restoreCanvasState: (state: any) => void;
     applyTextStyle: (property: string, value: any) => void;
     applyColorToSelected: () => void;
+    handlerOwnElementCreate: (element: SlideElement) => void;
+    clearSelection: () => void;
   }) => void;
 }
 
@@ -48,6 +56,9 @@ const SlideCanvas: React.FC<SlideCanvasProps> = ({
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fabricCanvasRef = useRef<fabric.Canvas | null>(null);
+  const [pendingCreatedObjects, setPendingCreatedObjects] = useState<PendingCreatedObject[]>([]);
+  const [pendingDeletedObjects, setPendingDeletedObjects] = useState<number[]>([]);
+  const tempIdCounterRef = useRef(1);
 
   const updateSelectionState = useCallback((selected: fabric.Object[]) => {
     const selectedObjects = selected as any[];
@@ -107,10 +118,53 @@ const SlideCanvas: React.FC<SlideCanvasProps> = ({
     updateSelectionState([]);
   }, [updateSelectionState]);
 
+  const handleObjectCreatedLocally = useCallback((fabricObject: fabric.Object, properties: any) => {
+    const tempId = tempIdCounterRef.current++;
+    const propertiesString = JSON.stringify(properties);
+    
+    (fabricObject as any).tempId = tempId;
+    
+    setPendingCreatedObjects(prev => [...prev, {
+      fabricObject,
+      properties: propertiesString,
+      tempId
+    }]);
+  }, []);
+
+  const handlerOwnElementCreate = useCallback((element: SlideElement) => {
+    const pendingObject = pendingCreatedObjects.find(
+      pending => pending.properties === element.properties
+    );
+
+    if (!pendingObject) return;
+
+    if (pendingDeletedObjects.includes(pendingObject.tempId)) {
+      setPendingDeletedObjects(prev => prev.filter(id => id !== pendingObject.tempId));
+      setPendingCreatedObjects(prev => prev.filter(p => p.tempId !== pendingObject.tempId));
+      
+      if (fabricCanvasRef.current) {
+        fabricCanvasRef.current.remove(pendingObject.fabricObject);
+      }
+      return;
+    }
+
+    (pendingObject.fabricObject as any).elementId = element.id;
+    delete (pendingObject.fabricObject as any).tempId;
+
+    setPendingCreatedObjects(prev => prev.filter(p => p.tempId !== pendingObject.tempId));
+  }, [pendingCreatedObjects, pendingDeletedObjects]);
+
   const clearCanvas = useCallback(() => {
     if (fabricCanvasRef.current) {
       fabricCanvasRef.current.clear();
       fabricCanvasRef.current.backgroundColor = '#ffffff';
+      fabricCanvasRef.current.renderAll();
+    }
+  }, []);
+
+  const clearSelection = useCallback(() => {
+    if (fabricCanvasRef.current) {
+      fabricCanvasRef.current.discardActiveObject();
       fabricCanvasRef.current.renderAll();
     }
   }, []);
@@ -299,7 +353,8 @@ const SlideCanvas: React.FC<SlideCanvasProps> = ({
     canvas: fabricCanvasRef.current,
     selectedTool,
     selectedColor,
-    onObjectCreate
+    onObjectCreate,
+    onObjectCreatedLocally: handleObjectCreatedLocally
   });
 
   useEffect(() => {
@@ -359,10 +414,12 @@ const SlideCanvas: React.FC<SlideCanvasProps> = ({
         saveCanvasState,
         restoreCanvasState,
         applyTextStyle,
-        applyColorToSelected
+        applyColorToSelected,
+        handlerOwnElementCreate,
+        clearSelection
       });
     }
-  }, [onCanvasMethodsReady, updateElementOnCanvas, removeElementFromCanvas, addElementToCanvas, saveCanvasState, restoreCanvasState, applyTextStyle, applyColorToSelected]);
+  }, [onCanvasMethodsReady, updateElementOnCanvas, removeElementFromCanvas, addElementToCanvas, saveCanvasState, restoreCanvasState, applyTextStyle, applyColorToSelected, handlerOwnElementCreate, clearSelection]);
 
   if (!slide) {
     return (

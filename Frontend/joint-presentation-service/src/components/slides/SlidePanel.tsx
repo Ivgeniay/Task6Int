@@ -10,23 +10,36 @@ interface SlidePanelProps {
   currentSlideIndex: number;
   onSlideSelect: (slideIndex: number) => void;
   canEdit: boolean;
+  isCreator: boolean;
+  onDeleteSlide?: (slideId: number) => void;
 }
 
 const SlidePanel: React.FC<SlidePanelProps> = ({
   slides,
   currentSlideIndex,
   onSlideSelect,
-  canEdit
+  canEdit,
+  isCreator,
+  onDeleteSlide
 }) => {
   const { addSlide } = useSignalR();
 
   const handleAddSlide = async () => {
-    if (!canEdit) return;
+    if (!isCreator) return;
     
     try {
       await addSlide();
     } catch (error) {
       console.error('Failed to add slide:', error);
+    }
+  };
+
+  const handleDeleteSlide = (slideId: number) => {
+    if (!isCreator || !onDeleteSlide) return;
+    
+    const confirmDelete = window.confirm('Are you sure you want to delete this slide?');
+    if (confirmDelete) {
+      onDeleteSlide(slideId);
     }
   };
 
@@ -36,6 +49,7 @@ const SlidePanel: React.FC<SlidePanelProps> = ({
         slidesCount={slides.length}
         canEdit={canEdit}
         onAddSlide={handleAddSlide}
+        isCreator={isCreator}
       />
 
       <div className="flex-1 overflow-y-auto p-2">
@@ -50,6 +64,8 @@ const SlidePanel: React.FC<SlidePanelProps> = ({
                 index={index}
                 isSelected={index === currentSlideIndex}
                 onSelect={() => onSlideSelect(index)}
+                isCreator={isCreator}
+                onDelete={() => handleDeleteSlide(slide.id)}
               />
             ))}
           </div>

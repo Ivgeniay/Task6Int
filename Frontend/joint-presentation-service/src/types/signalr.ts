@@ -160,6 +160,7 @@ export interface PresentationHubMethods {
   joinPresentation: (presentationId: number) => Promise<void>;
   leavePresentation: () => Promise<void>;
   addSlide: () => Promise<void>;
+  deleteSlide: (slideId: number) => Promise<void>;
   addSlideElement: (slideId: number, properties: string) => Promise<void>;
   updateSlideElement: (elementId: number, properties: string) => Promise<void>;
   deleteSlideElement: (elementId: number) => Promise<void>;

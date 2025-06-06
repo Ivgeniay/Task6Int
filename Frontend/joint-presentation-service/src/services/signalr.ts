@@ -17,7 +17,8 @@ import {
   EditorGrantedEvent,
   EditorRemovedEvent,
   UserUpdateRightsEvent,
-  ErrorEvent
+  ErrorEvent,
+  SlideDeletedEvent
 } from '../types/signalr';
 
 class SignalRService {
@@ -147,6 +148,10 @@ class SignalRService {
 
     this.connection.on(SIGNALR_EVENTS.SLIDE_ADDED, (data: SlideAddedEvent) => {
       this.emit(SIGNALR_EVENTS.SLIDE_ADDED, data);
+    });
+
+    this.connection.on(SIGNALR_EVENTS.SLIDE_DELETED, (data: SlideDeletedEvent) => {
+      this.emit(SIGNALR_EVENTS.SLIDE_DELETED, data);
     });
 
     this.connection.on(SIGNALR_EVENTS.ELEMENT_ADDED, (data: ElementAddedEvent) => {
@@ -280,8 +285,15 @@ class SignalRService {
     if (!this.connection || !this.connectionState.isConnected) {
       throw new Error('Not connected to SignalR hub');
     }
-
     await this.connection.invoke('AddSlide');
+  }
+
+  async deleteSlide(slideId: number): Promise<void> {
+    if (!this.connection || !this.connectionState.isConnected) {
+      throw new Error('Not connected to SignalR hub');
+    }
+
+    await this.connection.invoke('DeleteSlide', slideId);
   }
 
   async addSlideElement(slideId: number, properties: string): Promise<void> {

@@ -6,28 +6,45 @@ interface DragToCreateOptions {
   selectedTool: string;
   selectedColor?: string;
   onObjectCreate: (properties: any) => void;
+  onObjectCreatedLocally?: (fabricObject: fabric.Object, properties: any) => void;
 }
 
 interface DragState {
   isCreating: boolean;
   startPoint: { x: number; y: number } | null;
-  previewObject: fabric.Object | null;
 }
 
 export const useDragToCreate = ({
   canvas,
   selectedTool,
   selectedColor = '#3B82F6',
-  onObjectCreate
+  onObjectCreate,
+  onObjectCreatedLocally
 }: DragToCreateOptions): void => {
   const [dragState, setDragState] = useState<DragState>({
     isCreating: false,
-    startPoint: null,
-    previewObject: null
+    startPoint: null
   });
 
   const dragStateRef = useRef(dragState);
+  const previewObjectRef = useRef<fabric.Object | null>(null);
+
   dragStateRef.current = dragState;
+
+  const clearPreviewObject = useCallback(() => {
+    if (previewObjectRef.current && canvas) {
+      canvas.remove(previewObjectRef.current);
+      previewObjectRef.current = null;
+    }
+  }, [canvas]);
+
+  const setPreviewObject = useCallback((obj: fabric.Object) => {
+    clearPreviewObject();
+    if (canvas) {
+      previewObjectRef.current = obj;
+      canvas.add(obj);
+    }
+  }, [canvas, clearPreviewObject]);
 
   const isShapeTool = useCallback(() => {
     return ['shape-rect', 'shape-circle', 'shape-triangle', 'shape-line'].includes(selectedTool);
@@ -110,6 +127,70 @@ export const useDragToCreate = ({
     return previewObject;
   }, [selectedTool, selectedColor]);
 
+  const createFabricObject = useCallback((properties: any) => {
+    let fabricObject: fabric.Object | null = null;
+
+    switch (properties.type) {
+      case 'text':
+        fabricObject = new fabric.Textbox(properties.text, {
+          left: properties.left,
+          top: properties.top,
+          width: properties.width,
+          fontSize: properties.fontSize,
+          fontFamily: properties.fontFamily,
+          fill: properties.fill
+        });
+        break;
+      case 'rect':
+        fabricObject = new fabric.Rect({
+          left: properties.left,
+          top: properties.top,
+          width: properties.width,
+          height: properties.height,
+          fill: properties.fill,
+          stroke: properties.stroke,
+          strokeWidth: properties.strokeWidth
+        });
+        break;
+      case 'circle':
+        fabricObject = new fabric.Circle({
+          left: properties.left,
+          top: properties.top,
+          radius: properties.radius,
+          fill: properties.fill,
+          stroke: properties.stroke,
+          strokeWidth: properties.strokeWidth
+        });
+        break;
+      case 'triangle':
+        fabricObject = new fabric.Triangle({
+          left: properties.left,
+          top: properties.top,
+          width: properties.width,
+          height: properties.height,
+          fill: properties.fill,
+          stroke: properties.stroke,
+          strokeWidth: properties.strokeWidth
+        });
+        break;
+      case 'line':
+        fabricObject = new fabric.Line([
+          properties.x1 || 0,
+          properties.y1 || 0,
+          properties.x2 || 100,
+          properties.y2 || 0
+        ], {
+          left: properties.left,
+          top: properties.top,
+          stroke: properties.stroke,
+          strokeWidth: properties.strokeWidth
+        });
+        break;
+    }
+
+    return fabricObject;
+  }, []);
+
   const createFinalObject = useCallback((startX: number, startY: number, endX: number, endY: number) => {
     const width = Math.abs(endX - startX);
     const height = Math.abs(endY - startY);
@@ -127,6 +208,16 @@ export const useDragToCreate = ({
         fontFamily: 'Arial',
         fill: selectedColor
       };
+
+      const fabricObject = createFabricObject(properties);
+      if (fabricObject && canvas) {
+        canvas.add(fabricObject);
+        canvas.setActiveObject(fabricObject);
+        if (onObjectCreatedLocally) {
+          onObjectCreatedLocally(fabricObject, properties);
+        }
+      }
+      
       onObjectCreate(properties);
       return;
     }
@@ -181,8 +272,17 @@ export const useDragToCreate = ({
         break;
     }
 
+    const fabricObject = createFabricObject(properties);
+    if (fabricObject && canvas) {
+      canvas.add(fabricObject);
+      canvas.setActiveObject(fabricObject);
+      if (onObjectCreatedLocally) {
+        onObjectCreatedLocally(fabricObject, properties);
+      }
+    }
+
     onObjectCreate(properties);
-  }, [selectedTool, selectedColor, onObjectCreate, isTextTool]);
+  }, [selectedTool, selectedColor, onObjectCreate, isTextTool, createFabricObject, canvas, onObjectCreatedLocally]);
 
   const handleMouseDown = useCallback((e: fabric.TEvent) => {
     if (!canvas || selectedTool === 'select') return;
@@ -197,8 +297,7 @@ export const useDragToCreate = ({
     if (isShapeTool()) {
       setDragState({
         isCreating: true,
-        startPoint: { x: pointer.x, y: pointer.y },
-        previewObject: null
+        startPoint: { x: pointer.x, y: pointer.y }
       });
       canvas.selection = false;
     }
@@ -210,10 +309,6 @@ export const useDragToCreate = ({
     const pointer = canvas.getPointer(e.e as MouseEvent);
     const { startPoint } = dragStateRef.current;
 
-    if (dragStateRef.current.previewObject) {
-      canvas.remove(dragStateRef.current.previewObject);
-    }
-
     const newPreviewObject = createPreviewObject(
       startPoint.x,
       startPoint.y,
@@ -222,41 +317,35 @@ export const useDragToCreate = ({
     );
 
     if (newPreviewObject) {
-      canvas.add(newPreviewObject);
-      canvas.renderAll();
-      
-      setDragState(prev => ({
-        ...prev,
-        previewObject: newPreviewObject
-      }));
+      setPreviewObject(newPreviewObject);
     }
-  }, [canvas, createPreviewObject]);
+  }, [canvas, createPreviewObject, setPreviewObject]);
 
   const handleMouseUp = useCallback((e: fabric.TEvent) => {
     if (!canvas || !dragStateRef.current.isCreating || !dragStateRef.current.startPoint) return;
 
     const pointer = canvas.getPointer(e.e as MouseEvent);
-    const { startPoint, previewObject } = dragStateRef.current;
+    const { startPoint } = dragStateRef.current;
 
-    if (previewObject) {
-      canvas.remove(previewObject);
-    }
+    clearPreviewObject();
 
     createFinalObject(startPoint.x, startPoint.y, pointer.x, pointer.y);
 
     setDragState({
       isCreating: false,
-      startPoint: null,
-      previewObject: null
+      startPoint: null
     });
 
     canvas.selection = true;
-    canvas.renderAll();
-  }, [canvas, createFinalObject]);
+  }, [canvas, createFinalObject, clearPreviewObject]);
 
   useEffect(() => {
     updateCursor();
   }, [updateCursor, selectedTool]);
+
+  useEffect(() => {
+    clearPreviewObject();
+  }, [selectedTool, clearPreviewObject]);
 
   useEffect(() => {
     if (!canvas) return;
@@ -266,15 +355,11 @@ export const useDragToCreate = ({
       canvas.off('mouse:move', handleMouseMove);
       canvas.off('mouse:up', handleMouseUp);
 
-      if (dragStateRef.current.previewObject) {
-        canvas.remove(dragStateRef.current.previewObject);
-        canvas.renderAll();
-      }
+      clearPreviewObject();
 
       setDragState({
         isCreating: false,
-        startPoint: null,
-        previewObject: null
+        startPoint: null
       });
     };
 
@@ -283,5 +368,5 @@ export const useDragToCreate = ({
     canvas.on('mouse:up', handleMouseUp);
 
     return cleanup;
-  }, [canvas, handleMouseDown, handleMouseMove, handleMouseUp]);
+  }, [canvas, handleMouseDown, handleMouseMove, handleMouseUp, clearPreviewObject]);
 };

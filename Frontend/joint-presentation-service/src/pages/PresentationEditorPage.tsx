@@ -56,6 +56,7 @@ const PresentationEditorPage: React.FC<PresentationEditorPageProps> = ({ current
     restoreCanvasState: (state: any) => void;
     applyTextStyle: (property: string, value: any) => void;
     applyColorToSelected: () => void;
+    handlerOwnElementCreate: (element: SlideElement) => void;
   } | null>(null);
 
   const {
@@ -65,6 +66,7 @@ const PresentationEditorPage: React.FC<PresentationEditorPageProps> = ({ current
     updateSlideElement,
     deleteSlideElement,
     onJoinedPresentation,
+    deleteSlide,
     onSlideAdded,
     onSlideDeleted,
     onUserUpdateRights,
@@ -125,6 +127,17 @@ const PresentationEditorPage: React.FC<PresentationEditorPageProps> = ({ current
   }, [slides, slideCache]);
 
   useEffect(() => {
+    onSlideDeleted((data) => {
+      setSlides(prev => prev.filter(slide => slide.id !== data.slideId));
+      invalidateSlideCache(data.slideId);
+      
+      if (currentSlideIndex >= slides.length - 1) {
+        setCurrentSlideIndex(Math.max(0, slides.length - 2));
+      }
+    });
+  }, [onSlideDeleted, invalidateSlideCache, currentSlideIndex, slides.length]);
+
+  useEffect(() => {
     if (!id || !currentUserId) {
       navigate('/');
       return;
@@ -146,14 +159,7 @@ const PresentationEditorPage: React.FC<PresentationEditorPageProps> = ({ current
       setSlides(prev => [...prev, data.slide].sort((a, b) => a.order - b.order));
       invalidateSlideCache(data.slide.id);
     });
-  }, [onSlideAdded, invalidateSlideCache, currentUserId]);
-
-  useEffect(() => {
-    onSlideDeleted((data) => {
-      setSlides(prev => prev.filter(slide => slide.id !== data.slideId));
-      invalidateSlideCache(data.slideId);
-    });
-  }, [onSlideDeleted, invalidateSlideCache, currentUserId]);
+  }, [onSlideAdded, invalidateSlideCache]);
 
   useEffect(() => {
     onUserUpdateRights((data) => {
@@ -182,31 +188,30 @@ const PresentationEditorPage: React.FC<PresentationEditorPageProps> = ({ current
   useEffect(() => {
     onElementAdded((data) => {
       if (data.slideId === currentSlideWithElements?.id && canvasMethodsRef) {
-
         if (data.initiatorUserId !== currentUserId) {
           canvasMethodsRef.addElement(data.element);
           invalidateSlideCache(data.slideId);
+        } else {
+          canvasMethodsRef.handlerOwnElementCreate(data.element);
         }
       }
     });
-  }, [onElementAdded, currentSlideWithElements?.id, canvasMethodsRef, invalidateSlideCache, currentUserId ]);
+  }, [onElementAdded, currentSlideWithElements?.id, canvasMethodsRef, invalidateSlideCache, currentUserId]);
 
   useEffect(() => {
     onElementUpdated((data) => {
       if (currentSlideWithElements?.elements?.some(el => el.id === data.elementId) && canvasMethodsRef) {
-
         if (data.initiatorUserId !== currentUserId) {
           canvasMethodsRef.updateElement(data.element);
           invalidateSlideCache(currentSlideWithElements.id);
         }
       }
     });
-  }, [onElementUpdated, currentSlideWithElements, canvasMethodsRef, invalidateSlideCache, currentUserId ]);
+  }, [onElementUpdated, currentSlideWithElements, canvasMethodsRef, invalidateSlideCache, currentUserId]);
 
   useEffect(() => {
     onElementDeleted((data) => {
       if (currentSlideWithElements?.elements?.some(el => el.id === data.elementId) && canvasMethodsRef) {
-
         if (data.initiatorUserId !== currentUserId) {
           canvasMethodsRef.removeElement(data.elementId);
           if (currentSlideWithElements) {
@@ -215,7 +220,7 @@ const PresentationEditorPage: React.FC<PresentationEditorPageProps> = ({ current
         }
       }
     });
-  }, [onElementDeleted, currentSlideWithElements, canvasMethodsRef, invalidateSlideCache, currentUserId ]);
+  }, [onElementDeleted, currentSlideWithElements, canvasMethodsRef, invalidateSlideCache, currentUserId]);
 
   useEffect(() => {
     onError((data) => {
@@ -346,6 +351,16 @@ const PresentationEditorPage: React.FC<PresentationEditorPageProps> = ({ current
     }
   };
 
+  const handleDeleteSlide = useCallback(async (slideId: number) => {
+    if (!presentation || presentation.creatorId !== currentUserId) return;
+
+    try {
+      await deleteSlide(slideId);
+    } catch (error) {
+      console.error('Failed to delete slide:', error);
+    }
+  }, [presentation, currentUserId, deleteSlide]);
+
   const handleCanvasMethodsReady = useCallback((methods: {
     updateElement: (element: SlideElement) => void;
     removeElement: (elementId: number) => void;
@@ -354,6 +369,7 @@ const PresentationEditorPage: React.FC<PresentationEditorPageProps> = ({ current
     restoreCanvasState: (state: any) => void;
     applyTextStyle: (property: string, value: any) => void;
     applyColorToSelected: () => void;
+    handlerOwnElementCreate: (element: SlideElement) => void;
   }) => {
     setCanvasMethodsRef(methods);
   }, []);
@@ -415,6 +431,7 @@ const PresentationEditorPage: React.FC<PresentationEditorPageProps> = ({ current
     );
   }
 
+  const isCreator = presentation.creatorId === currentUserId;
   const userRole = getUserRole(presentation, currentUserId);
 
   return (
@@ -485,6 +502,8 @@ const PresentationEditorPage: React.FC<PresentationEditorPageProps> = ({ current
             currentSlideIndex={currentSlideIndex}
             onSlideSelect={handleSlideSelect}
             canEdit={canEdit}
+            isCreator={isCreator}
+            onDeleteSlide={handleDeleteSlide}
           />
         </div>
 

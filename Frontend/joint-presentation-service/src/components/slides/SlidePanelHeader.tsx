@@ -3,14 +3,16 @@ import React from 'react';
 interface SlidePanelHeaderProps {
   slidesCount: number;
   canEdit: boolean;
+  isCreator: boolean;
   onAddSlide: () => void;
 }
 
 const SlidePanelHeader: React.FC<SlidePanelHeaderProps> = ({
   slidesCount,
   canEdit,
-  onAddSlide
-}) => {
+  onAddSlide,
+  isCreator,
+} : SlidePanelHeaderProps) => {
   return (
     <div className="p-4 border-b bg-white">
       <div className="flex items-center justify-between mb-3">
@@ -18,7 +20,7 @@ const SlidePanelHeader: React.FC<SlidePanelHeaderProps> = ({
         <span className="text-xs text-gray-500">{slidesCount} slides</span>
       </div>
       
-      {canEdit && (
+      {isCreator && (
         <button
           onClick={onAddSlide}
           className="w-full px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center"

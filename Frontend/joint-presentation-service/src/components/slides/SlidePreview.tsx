@@ -6,13 +6,17 @@ interface SlidePreviewProps {
   index: number;
   isSelected: boolean;
   onSelect: () => void;
+  isCreator: boolean;
+  onDelete?: () => void;
 }
 
 const SlidePreview: React.FC<SlidePreviewProps> = ({
   slide,
   index,
   isSelected,
-  onSelect
+  onSelect,
+  isCreator,
+  onDelete
 }) => {
   const formatSlideNumber = (slideIndex: number) => {
     return (slideIndex + 1).toString().padStart(2, '0');
@@ -25,12 +29,26 @@ const SlidePreview: React.FC<SlidePreviewProps> = ({
   return (
     <div
       onClick={onSelect}
-      className={`p-3 rounded-lg border-2 cursor-pointer transition-all duration-200 hover:shadow-md ${
+      className={`relative p-3 rounded-lg border-2 cursor-pointer transition-all duration-200 hover:shadow-md ${
         isSelected
           ? 'border-blue-500 bg-blue-50 shadow-sm'
           : 'border-gray-200 bg-white hover:border-gray-300'
       }`}
     >
+      {isCreator && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete?.();
+          }}
+          className="absolute top-1 right-1 w-5 h-5 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors flex items-center justify-center z-10"
+        >
+          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      )}
+      
       <div className="flex items-center justify-between mb-2">
         <span className="text-xs font-medium text-gray-600">
           Slide {formatSlideNumber(index)}
