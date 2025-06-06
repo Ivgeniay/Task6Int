@@ -182,10 +182,11 @@ const PresentationEditorPage: React.FC<PresentationEditorPageProps> = ({ current
   useEffect(() => {
     onElementAdded((data) => {
       if (data.slideId === currentSlideWithElements?.id && canvasMethodsRef) {
+
         if (data.initiatorUserId !== currentUserId) {
           canvasMethodsRef.addElement(data.element);
+          invalidateSlideCache(data.slideId);
         }
-        invalidateSlideCache(data.slideId);
       }
     });
   }, [onElementAdded, currentSlideWithElements?.id, canvasMethodsRef, invalidateSlideCache, currentUserId ]);
@@ -193,10 +194,11 @@ const PresentationEditorPage: React.FC<PresentationEditorPageProps> = ({ current
   useEffect(() => {
     onElementUpdated((data) => {
       if (currentSlideWithElements?.elements?.some(el => el.id === data.elementId) && canvasMethodsRef) {
+
         if (data.initiatorUserId !== currentUserId) {
           canvasMethodsRef.updateElement(data.element);
+          invalidateSlideCache(currentSlideWithElements.id);
         }
-        invalidateSlideCache(currentSlideWithElements.id);
       }
     });
   }, [onElementUpdated, currentSlideWithElements, canvasMethodsRef, invalidateSlideCache, currentUserId ]);
@@ -204,11 +206,12 @@ const PresentationEditorPage: React.FC<PresentationEditorPageProps> = ({ current
   useEffect(() => {
     onElementDeleted((data) => {
       if (currentSlideWithElements?.elements?.some(el => el.id === data.elementId) && canvasMethodsRef) {
+
         if (data.initiatorUserId !== currentUserId) {
           canvasMethodsRef.removeElement(data.elementId);
-        }
-        if (currentSlideWithElements) {
-          invalidateSlideCache(currentSlideWithElements.id);
+          if (currentSlideWithElements) {
+            invalidateSlideCache(currentSlideWithElements.id);
+          }
         }
       }
     });
