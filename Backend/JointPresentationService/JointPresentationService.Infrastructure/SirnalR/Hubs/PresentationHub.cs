@@ -555,7 +555,16 @@ namespace JointPresentationService.Infrastructure.SirnalR.Hubs
                 var userId = (int)userIdObj;
                 var slideId = (int)slibeIdObj;
 
-                var presentation = await _slideService.GetPresentationBySlideId(slideId);
+                var presentation = await _presentationService.GetBySlideIdAsync(slideId);
+
+                if (presentation is null)
+                {
+                    await Clients.Caller.SendAsync(InfrastructureConstants.SignalRConstants.Events.Error, new ErrorEvent
+                    {
+                        Message = InfrastructureConstants.SignalRConstants.ErrorMessages.PresentationNotFound
+                    });
+                    return;
+                }
                 await _slideService.DeleteSlideAsync(slideId, userId);
 
                 var groupName = InfrastructureConstants.SignalRConstants.Groups.GetPresentationGroup(presentation.Id);

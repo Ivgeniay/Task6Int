@@ -66,6 +66,7 @@ const PresentationEditorPage: React.FC<PresentationEditorPageProps> = ({ current
     deleteSlideElement,
     onJoinedPresentation,
     onSlideAdded,
+    onSlideDeleted,
     onUserUpdateRights,
     onEditorGranted,
     onEditorRemoved,
@@ -145,7 +146,14 @@ const PresentationEditorPage: React.FC<PresentationEditorPageProps> = ({ current
       setSlides(prev => [...prev, data.slide].sort((a, b) => a.order - b.order));
       invalidateSlideCache(data.slide.id);
     });
-  }, [onSlideAdded, invalidateSlideCache]);
+  }, [onSlideAdded, invalidateSlideCache, currentUserId]);
+
+  useEffect(() => {
+    onSlideDeleted((data) => {
+      setSlides(prev => prev.filter(slide => slide.id !== data.slideId));
+      invalidateSlideCache(data.slideId);
+    });
+  }, [onSlideDeleted, invalidateSlideCache, currentUserId]);
 
   useEffect(() => {
     onUserUpdateRights((data) => {
@@ -174,31 +182,37 @@ const PresentationEditorPage: React.FC<PresentationEditorPageProps> = ({ current
   useEffect(() => {
     onElementAdded((data) => {
       if (data.slideId === currentSlideWithElements?.id && canvasMethodsRef) {
-        canvasMethodsRef.addElement(data.element);
+        if (data.initiatorUserId !== currentUserId) {
+          canvasMethodsRef.addElement(data.element);
+        }
         invalidateSlideCache(data.slideId);
       }
     });
-  }, [onElementAdded, currentSlideWithElements?.id, canvasMethodsRef, invalidateSlideCache]);
+  }, [onElementAdded, currentSlideWithElements?.id, canvasMethodsRef, invalidateSlideCache, currentUserId ]);
 
   useEffect(() => {
     onElementUpdated((data) => {
       if (currentSlideWithElements?.elements?.some(el => el.id === data.elementId) && canvasMethodsRef) {
-        canvasMethodsRef.updateElement(data.element);
+        if (data.initiatorUserId !== currentUserId) {
+          canvasMethodsRef.updateElement(data.element);
+        }
         invalidateSlideCache(currentSlideWithElements.id);
       }
     });
-  }, [onElementUpdated, currentSlideWithElements, canvasMethodsRef, invalidateSlideCache]);
+  }, [onElementUpdated, currentSlideWithElements, canvasMethodsRef, invalidateSlideCache, currentUserId ]);
 
   useEffect(() => {
     onElementDeleted((data) => {
       if (currentSlideWithElements?.elements?.some(el => el.id === data.elementId) && canvasMethodsRef) {
-        canvasMethodsRef.removeElement(data.elementId);
+        if (data.initiatorUserId !== currentUserId) {
+          canvasMethodsRef.removeElement(data.elementId);
+        }
         if (currentSlideWithElements) {
           invalidateSlideCache(currentSlideWithElements.id);
         }
       }
     });
-  }, [onElementDeleted, currentSlideWithElements, canvasMethodsRef, invalidateSlideCache]);
+  }, [onElementDeleted, currentSlideWithElements, canvasMethodsRef, invalidateSlideCache, currentUserId ]);
 
   useEffect(() => {
     onError((data) => {

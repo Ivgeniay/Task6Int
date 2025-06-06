@@ -70,10 +70,12 @@ export interface UserLeftPresentationEvent {
 
 export interface SlideAddedEvent {
   slide: Slide;
+  initiatorUserId: number;
 }
 
 export interface SlideDeletedEvent {
   slideId: number;
+  initiatorUserId: number;
 }
 
 export interface SlidesReorderedEvent {
@@ -84,15 +86,18 @@ export interface SlidesReorderedEvent {
 export interface ElementAddedEvent {
   slideId: number;
   element: SlideElement;
+  initiatorUserId: number;
 }
 
 export interface ElementUpdatedEvent {
   elementId: number;
   element: SlideElement;
+  initiatorUserId: number;
 }
 
 export interface ElementDeletedEvent {
   elementId: number;
+  initiatorUserId: number;
 }
 
 export interface EditorGrantedEvent {

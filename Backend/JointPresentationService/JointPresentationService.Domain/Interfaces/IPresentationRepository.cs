@@ -8,6 +8,7 @@ namespace JointPresentationService.Domain.Interfaces
         Task<Presentation> GetByIdWithSlidesAsync(int id);
         Task<Presentation> CreateAsync(Presentation presentation);
         Task<Presentation> UpdateAsync(Presentation presentation);
+        Task<Presentation> GetBySlideIdAsync(int slideId);
         Task DeleteAsync(int id);
         Task<List<Presentation>> GetAllAsync();
         Task<List<Presentation>> GetByCreatorIdAsync(int creatorId);

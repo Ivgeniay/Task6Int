@@ -55,7 +55,14 @@ namespace JointPresentationService.Persistence.Repositories
             .Include(p => p.Slides).ThenInclude(s => s.Elements)
             .AsNoTracking()
             .ToListAsync();
-        
+
+
+        public async Task<Presentation?> GetBySlideIdAsync(int slideId) =>
+            await _context.Presentations
+                .Where(p => p.Slides.Any(s => s.Id == slideId))
+                .Include(p => p.Slides)
+                .FirstOrDefaultAsync();
+
 
         public async Task<List<Presentation>> GetByCreatorIdAsync(int creatorId) =>
             await _context.Presentations

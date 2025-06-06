@@ -17,7 +17,8 @@ import {
   EditorGrantedEvent,
   EditorRemovedEvent,
   UserUpdateRightsEvent,
-  ErrorEvent
+  ErrorEvent,
+  SlideDeletedEvent
 } from '../types/signalr';
 import signalRService from '../services/signalr';
 
@@ -52,6 +53,7 @@ interface UseSignalRReturn {
   onUserJoinedPresentation: (handler: (data: UserJoinedPresentationEvent) => void) => void;
   onUserLeftPresentation: (handler: (data: UserLeftPresentationEvent) => void) => void;
   onSlideAdded: (handler: (data: SlideAddedEvent) => void) => void;
+  onSlideDeleted: (handler: (data: SlideDeletedEvent) => void) => void;
   onElementAdded: (handler: (data: ElementAddedEvent) => void) => void;
   onElementUpdated: (handler: (data: ElementUpdatedEvent) => void) => void;
   onElementDeleted: (handler: (data: ElementDeletedEvent) => void) => void;
@@ -229,6 +231,7 @@ export const useSignalR = (options: UseSignalROptions = {}): UseSignalRReturn =>
   const onUserJoinedPresentation = createEventHandler(SIGNALR_EVENTS.USER_JOINED_PRESENTATION);
   const onUserLeftPresentation = createEventHandler(SIGNALR_EVENTS.USER_LEFT_PRESENTATION);
   const onSlideAdded = createEventHandler(SIGNALR_EVENTS.SLIDE_ADDED);
+  const onSlideDeleted = createEventHandler(SIGNALR_EVENTS.SLIDE_DELETED);
   const onElementAdded = createEventHandler(SIGNALR_EVENTS.ELEMENT_ADDED);
   const onElementUpdated = createEventHandler(SIGNALR_EVENTS.ELEMENT_UPDATED);
   const onElementDeleted = createEventHandler(SIGNALR_EVENTS.ELEMENT_DELETED);
@@ -262,6 +265,7 @@ export const useSignalR = (options: UseSignalROptions = {}): UseSignalRReturn =>
     onUserJoinedPresentation,
     onUserLeftPresentation,
     onSlideAdded,
+    onSlideDeleted,
     onElementAdded,
     onElementUpdated,
     onElementDeleted,

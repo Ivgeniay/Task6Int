@@ -32,6 +32,9 @@ namespace JointPresentationService.Application.Services
             return presentation;
         }
 
+        public async Task<Presentation?> GetBySlideIdAsync(int slideId) =>
+            await _presentationRepository.GetBySlideIdAsync(slideId);
+        
         public async Task<Presentation> CreatePresentationAsync(string title, int creatorId)
         {
             if (string.IsNullOrWhiteSpace(title))
