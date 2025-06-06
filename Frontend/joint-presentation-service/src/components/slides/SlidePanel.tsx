@@ -36,11 +36,7 @@ const SlidePanel: React.FC<SlidePanelProps> = ({
 
   const handleDeleteSlide = (slideId: number) => {
     if (!isCreator || !onDeleteSlide) return;
-    
-    const confirmDelete = window.confirm('Are you sure you want to delete this slide?');
-    if (confirmDelete) {
-      onDeleteSlide(slideId);
-    }
+    onDeleteSlide(slideId);
   };
 
   return (

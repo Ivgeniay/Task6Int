@@ -57,6 +57,7 @@ const PresentationEditorPage: React.FC<PresentationEditorPageProps> = ({ current
     applyTextStyle: (property: string, value: any) => void;
     applyColorToSelected: () => void;
     handlerOwnElementCreate: (element: SlideElement) => void;
+    clearSelection: () => void;
   } | null>(null);
 
   const {
@@ -128,14 +129,18 @@ const PresentationEditorPage: React.FC<PresentationEditorPageProps> = ({ current
 
   useEffect(() => {
     onSlideDeleted((data) => {
+      const deletedSlideIndex = slides.findIndex(slide => slide.id === data.slideId);
+
       setSlides(prev => prev.filter(slide => slide.id !== data.slideId));
       invalidateSlideCache(data.slideId);
       
-      if (currentSlideIndex >= slides.length - 1) {
-        setCurrentSlideIndex(Math.max(0, slides.length - 2));
+      if (currentSlideIndex === deletedSlideIndex && deletedSlideIndex > 0) {
+        setCurrentSlideIndex(deletedSlideIndex - 1);
+      } else if (currentSlideIndex > deletedSlideIndex) {
+        setCurrentSlideIndex(prev => prev - 1);
       }
     });
-  }, [onSlideDeleted, invalidateSlideCache, currentSlideIndex, slides.length]);
+  }, [onSlideDeleted, invalidateSlideCache, currentSlideIndex, slides]);
 
   useEffect(() => {
     if (!id || !currentUserId) {
@@ -290,14 +295,22 @@ const PresentationEditorPage: React.FC<PresentationEditorPageProps> = ({ current
     if (!canEdit || selectedState.selectedObjects.length === 0) return;
 
     try {
+      selectedState.selectedObjects.forEach(obj => {
+        if (obj.elementId && canvasMethodsRef) {
+          canvasMethodsRef.removeElement(obj.elementId);
+        }
+      });
+
+      canvasMethodsRef?.clearSelection();
+
       for (const obj of selectedState.selectedObjects) {
         if (obj.elementId) {
           await deleteSlideElement(obj.elementId);
         }
       }
     } catch (error) {
-      console.error('Failed to delete elements:', error);
-    }
+    console.error('Failed to delete elements:', error);
+  }
   };
 
   const handleClearSlide = async () => {
@@ -370,6 +383,7 @@ const PresentationEditorPage: React.FC<PresentationEditorPageProps> = ({ current
     applyTextStyle: (property: string, value: any) => void;
     applyColorToSelected: () => void;
     handlerOwnElementCreate: (element: SlideElement) => void;
+    clearSelection: () => void;
   }) => {
     setCanvasMethodsRef(methods);
   }, []);

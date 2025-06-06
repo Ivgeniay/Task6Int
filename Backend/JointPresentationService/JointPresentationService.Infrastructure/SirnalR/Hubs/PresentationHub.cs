@@ -538,12 +538,13 @@ namespace JointPresentationService.Infrastructure.SirnalR.Hubs
             }
         }
 
-        public async Task DeleteSlide()
+        public async Task DeleteSlide(int slideId)
         {
             try
             {
-                if (!Context.Items.TryGetValue(InfrastructureConstants.SignalRConstants.ContextKeys.UserId, out var userIdObj) ||
-                   !Context.Items.TryGetValue(InfrastructureConstants.SignalRConstants.ContextKeys.SlideId, out var slibeIdObj))
+                if (!Context.Items.TryGetValue(InfrastructureConstants.SignalRConstants.ContextKeys.UserId, out var userIdObj) 
+                    //|| Context.Items.TryGetValue(InfrastructureConstants.SignalRConstants.ContextKeys.SlideId, out var slibeIdObj
+                   )
                 {
                     await Clients.Caller.SendAsync(InfrastructureConstants.SignalRConstants.Events.Error, new ErrorEvent
                     {
@@ -553,7 +554,7 @@ namespace JointPresentationService.Infrastructure.SirnalR.Hubs
                 }
 
                 var userId = (int)userIdObj;
-                var slideId = (int)slibeIdObj;
+                //var slideId = (int)slibeIdObj;
 
                 var presentation = await _presentationService.GetBySlideIdAsync(slideId);
 
