@@ -175,6 +175,19 @@ namespace JointPresentationService.Application.Services
             return await _slideElementRepository.GetBySlideIdAsync(slideId);
         }
 
+        public async Task<Presentation> GetPresentationBySlideId(int slideId)
+        {
+            var slide = await _slideRepository.GetByIdAsync(slideId);
+            if (slide == null)
+            {
+                throw new ArgumentException("Slide not found");
+            }
+            var presentations = await _presentationRepository.GetAllAsync();
+            var presentation = presentations.First(p => p.Slides.FirstOrDefault(s => s.Id == slide.Id) != default);
+
+            return presentation;
+        }
+
         private async Task<bool> CanUserEditPresentationAsync(int presentationId, int userId)
         {
             var presentation = await _presentationRepository.GetByIdAsync(presentationId);

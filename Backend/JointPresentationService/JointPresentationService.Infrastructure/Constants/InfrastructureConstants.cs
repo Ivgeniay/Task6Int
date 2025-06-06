@@ -45,6 +45,7 @@
                 public const string UserId = "UserId";
                 public const string Nickname = "Nickname";
                 public const string PresentationId = "PresentationId";
+                public const string SlideId = "SlideId";
             }
 
             public static class ErrorMessages

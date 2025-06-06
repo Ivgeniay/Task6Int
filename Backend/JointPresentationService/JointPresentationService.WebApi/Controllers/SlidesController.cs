@@ -38,7 +38,6 @@ namespace JointPresentationService.WebApi.Controllers
             try
             {
                 var elements = await _slideService.GetSlideElementsAsync(id);
-
                 return Ok(elements);
             }
             catch (ArgumentException ex)

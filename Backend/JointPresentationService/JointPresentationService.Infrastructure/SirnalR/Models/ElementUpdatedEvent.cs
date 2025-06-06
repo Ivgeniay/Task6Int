@@ -6,5 +6,6 @@ namespace JointPresentationService.Infrastructure.SirnalR.Models
     {
         public int ElementId { get; set; }
         public SlideElement Element { get; set; }
+        public int InitiatorUserId { get; set; } = -1;
     }
 }

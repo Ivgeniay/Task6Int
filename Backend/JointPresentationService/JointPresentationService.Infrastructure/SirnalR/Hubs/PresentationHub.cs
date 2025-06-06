@@ -1,8 +1,10 @@
 ﻿using JointPresentationService.Application.Interfaces;
+using JointPresentationService.Domain.Models;
 using JointPresentationService.Infrastructure.Constants;
 using JointPresentationService.Infrastructure.SirnalR.Models;
 using Microsoft.AspNetCore.SignalR;
 using System.Collections.Concurrent;
+using System.Drawing;
 
 namespace JointPresentationService.Infrastructure.SirnalR.Hubs
 {
@@ -417,7 +419,8 @@ namespace JointPresentationService.Infrastructure.SirnalR.Hubs
                 await Clients.Group(groupName).SendAsync(InfrastructureConstants.SignalRConstants.Events.ElementAdded, new ElementAddedEvent
                 {
                     SlideId = slideId,
-                    Element = element
+                    Element = element,
+                    InitiatorUserId = userId
                 });
             }
             catch (Exception ex)
@@ -452,7 +455,8 @@ namespace JointPresentationService.Infrastructure.SirnalR.Hubs
                 await Clients.Group(groupName).SendAsync(InfrastructureConstants.SignalRConstants.Events.ElementUpdated, new ElementUpdatedEvent
                 {
                     ElementId = elementId,
-                    Element = element
+                    Element = element,
+                    InitiatorUserId = userId
                 });
             }
             catch (Exception ex)
@@ -486,7 +490,8 @@ namespace JointPresentationService.Infrastructure.SirnalR.Hubs
                 var groupName = InfrastructureConstants.SignalRConstants.Groups.GetPresentationGroup(presentationId);
                 await Clients.Group(groupName).SendAsync(InfrastructureConstants.SignalRConstants.Events.ElementDeleted, new ElementDeletedEvent
                 {
-                    ElementId = elementId
+                    ElementId = elementId,
+                    InitiatorUserId = userId
                 });
             }
             catch (Exception ex)
@@ -520,10 +525,47 @@ namespace JointPresentationService.Infrastructure.SirnalR.Hubs
                 var groupName = InfrastructureConstants.SignalRConstants.Groups.GetPresentationGroup(presentationId);
                 await Clients.Group(groupName).SendAsync(InfrastructureConstants.SignalRConstants.Events.SlideAdded, new SlideAddedEvent
                 {
-                    Slide = slide
+                    Slide = slide,
+                    InitiatorUserId = userId
                 });
             }
             catch (Exception ex)
+            {
+                await Clients.Caller.SendAsync(InfrastructureConstants.SignalRConstants.Events.Error, new ErrorEvent
+                {
+                    Message = ex.Message
+                });
+            }
+        }
+
+        public async Task DeleteSlide()
+        {
+            try
+            {
+                if (!Context.Items.TryGetValue(InfrastructureConstants.SignalRConstants.ContextKeys.UserId, out var userIdObj) ||
+                   !Context.Items.TryGetValue(InfrastructureConstants.SignalRConstants.ContextKeys.SlideId, out var slibeIdObj))
+                {
+                    await Clients.Caller.SendAsync(InfrastructureConstants.SignalRConstants.Events.Error, new ErrorEvent
+                    {
+                        Message = InfrastructureConstants.SignalRConstants.ErrorMessages.UserNotAuthenticated
+                    });
+                    return;
+                }
+
+                var userId = (int)userIdObj;
+                var slideId = (int)slibeIdObj;
+
+                var presentation = await _slideService.GetPresentationBySlideId(slideId);
+                await _slideService.DeleteSlideAsync(slideId, userId);
+
+                var groupName = InfrastructureConstants.SignalRConstants.Groups.GetPresentationGroup(presentation.Id);
+                await Clients.Group(groupName).SendAsync(InfrastructureConstants.SignalRConstants.Events.SlideDeleted, new SlideDeletedEvent
+                {
+                    SlideId = slideId,
+                    InitiatorUserId = userId
+                });
+            }
+            catch(Exception ex)
             {
                 await Clients.Caller.SendAsync(InfrastructureConstants.SignalRConstants.Events.Error, new ErrorEvent
                 {

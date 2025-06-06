@@ -8,6 +8,7 @@ namespace JointPresentationService.Application.Interfaces
         Task<Slide> GetSlideWithElementsAsync(int slideId);
         Task<SlideElement> AddElementAsync(int slideId, int userId, string properties);
         Task<SlideElement> UpdateElementAsync(int elementId, int userId, string properties);
+        Task<Presentation> GetPresentationBySlideId(int slideId);
         Task DeleteElementAsync(int elementId, int userId);
         Task DeleteSlideAsync(int slideId, int userId);
         Task<List<Slide>> ReorderSlidesAsync(int presentationId, int userId, List<int> slideIds);
