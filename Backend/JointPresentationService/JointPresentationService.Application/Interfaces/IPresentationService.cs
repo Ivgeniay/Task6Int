@@ -9,6 +9,7 @@ namespace JointPresentationService.Application.Interfaces
         Task<Presentation> CreatePresentationAsync(string title, int creatorId);
         Task<Presentation?> GetBySlideIdAsync(int slideId);
         Task DeletePresentationAsync(int presentationId);
+        Task UpdateTimestampAsync(int presentationId);
         Task<Presentation> JoinPresentationAsync(int presentationId, int userId);
         Task<bool> CanUserEditAsync(int presentationId, int userId);
         Task<Slide> AddSlideAsync(int presentationId, int userId);

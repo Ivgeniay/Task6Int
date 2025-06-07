@@ -423,6 +423,7 @@ namespace JointPresentationService.Infrastructure.SirnalR.Hubs
                     Element = element,
                     InitiatorUserId = userId
                 });
+
             }
             catch (Exception ex)
             {
@@ -575,6 +576,8 @@ namespace JointPresentationService.Infrastructure.SirnalR.Hubs
                     SlideId = slideId,
                     InitiatorUserId = userId
                 });
+
+                await _presentationService.UpdateTimestampAsync(presentation.Id);
             }
             catch(Exception ex)
             {

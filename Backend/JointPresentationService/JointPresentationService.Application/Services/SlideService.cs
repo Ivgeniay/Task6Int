@@ -82,7 +82,11 @@ namespace JointPresentationService.Application.Services
                 UpdatedAt = DateTime.UtcNow
             };
 
-            return await _slideElementRepository.CreateAsync(element);
+            var result = await _slideElementRepository.CreateAsync(element);
+
+            await _presentationRepository.UpdateTimestampAsync(slide.PresentationId);
+
+            return result;
         }
 
         public async Task<SlideElement> UpdateElementAsync(int elementId, int userId, string properties)
@@ -108,7 +112,11 @@ namespace JointPresentationService.Application.Services
             element.Properties = properties;
             element.UpdatedAt = DateTime.UtcNow;
 
-            return await _slideElementRepository.UpdateAsync(element);
+            var result = await _slideElementRepository.UpdateAsync(element);
+
+            await _presentationRepository.UpdateTimestampAsync(slide.PresentationId);
+
+            return result;
         }
 
         public async Task DeleteElementAsync(int elementId, int userId)
@@ -127,6 +135,7 @@ namespace JointPresentationService.Application.Services
             }
 
             await _slideElementRepository.DeleteAsync(elementId);
+            await _presentationRepository.UpdateTimestampAsync(slide.PresentationId);
         }
 
         public async Task DeleteSlideAsync(int slideId, int userId)
@@ -145,6 +154,7 @@ namespace JointPresentationService.Application.Services
 
             await _slideElementRepository.DeleteBySlideIdAsync(slideId);
             await _slideRepository.DeleteAsync(slideId);
+            await _presentationRepository.UpdateTimestampAsync(presentation.Id);
         }
 
         public async Task<List<Slide>> ReorderSlidesAsync(int presentationId, int userId, List<int> slideIds)
@@ -161,6 +171,7 @@ namespace JointPresentationService.Application.Services
             }
 
             await _slideRepository.ReorderSlidesAsync(presentationId, slideIds);
+            await _presentationRepository.UpdateTimestampAsync(presentationId);
             return await _slideRepository.GetByPresentationIdAsync(presentationId);
         }
 
@@ -175,20 +186,8 @@ namespace JointPresentationService.Application.Services
             return await _slideElementRepository.GetBySlideIdAsync(slideId);
         }
 
-        public async Task<Presentation> GetPresentationBySlideId(int slideId)
-        {
-
-            //return await _presentationRepository.GetBySlideIdAsync(slideId);
-            var slide = await _slideRepository.GetByIdAsync(slideId);
-            if (slide == null)
-            {
-                throw new ArgumentException("Slide not found");
-            }
-            var presentations = await _presentationRepository.GetAllAsync();
-            var presentation = presentations.First(p => p.Slides.FirstOrDefault(s => s.Id == slide.Id) != default);
-
-            return presentation;
-        }
+        public async Task<Presentation> GetPresentationBySlideId(int slideId) =>
+            await _presentationRepository.GetBySlideIdAsync(slideId);
 
         private async Task<bool> CanUserEditPresentationAsync(int presentationId, int userId)
         {

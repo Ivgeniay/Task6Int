@@ -138,7 +138,10 @@ namespace JointPresentationService.Application.Services
                 UpdatedAt = DateTime.UtcNow
             };
 
-            return await _slideRepository.CreateAsync(newSlide);
+
+            var slide = await _slideRepository.CreateAsync(newSlide);
+            await UpdateTimestampAsync(presentationId);
+            return slide;
         }
 
         public async Task GrantEditorRightsAsync(int presentationId, int userId, int grantedByUserId)
@@ -244,5 +247,8 @@ namespace JointPresentationService.Application.Services
             }
             return await _presentationRepository.GetEditorsAsync(presentationId);
         }
+
+        public async Task UpdateTimestampAsync(int presentationId) =>
+            await _presentationRepository.UpdateTimestampAsync(presentationId);
     }
 }

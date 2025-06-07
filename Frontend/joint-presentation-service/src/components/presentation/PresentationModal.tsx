@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useEffect, useCallback, useRef } from 'react';
 import { Slide } from '../../types/api';
 import { PresentationMode } from '../../types/signalr';
 import SlideCanvas from '../slides/SlideCanvas';
-
+import './styles/modal.css';
 
 interface PresentationModalProps {
   isOpen: boolean;
@@ -29,22 +29,32 @@ const PresentationModal: React.FC<PresentationModalProps> = ({
   onPrevSlide,
   onGoToSlide
 }) => {
-  const [showControls, setShowControls] = useState(false);
-  const [mouseTimer, setMouseTimer] = useState<NodeJS.Timeout | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const headerRef = useRef<HTMLDivElement>(null);
+  const controlsRef = useRef<HTMLDivElement>(null);
+  const mouseTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const handleMouseMove = useCallback(() => {
-    setShowControls(true);
-    
-    if (mouseTimer) {
-      clearTimeout(mouseTimer);
+    if (headerRef.current) {
+      headerRef.current.classList.add('visible');
+    }
+    if (controlsRef.current) {
+      controlsRef.current.classList.add('visible');
     }
     
-    const timer = setTimeout(() => {
-      setShowControls(false);
-    }, 3000);
+    if (mouseTimerRef.current) {
+      clearTimeout(mouseTimerRef.current);
+    }
     
-    setMouseTimer(timer);
-  }, [mouseTimer]);
+    mouseTimerRef.current = setTimeout(() => {
+      if (headerRef.current) {
+        headerRef.current.classList.remove('visible');
+      }
+      if (controlsRef.current) {
+        controlsRef.current.classList.remove('visible');
+      }
+    }, 3000);
+  }, []);
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if (!isPresenter) return;
@@ -85,31 +95,31 @@ const PresentationModal: React.FC<PresentationModalProps> = ({
 
   useEffect(() => {
     return () => {
-      if (mouseTimer) {
-        clearTimeout(mouseTimer);
+      if (mouseTimerRef.current) {
+        clearTimeout(mouseTimerRef.current);
       }
     };
-  }, [mouseTimer]);
+  }, []);
 
   if (!isOpen) return null;
 
   return (
     <div 
-      className="fixed inset-0 bg-black bg-opacity-80 z-50 flex flex-col"
+      ref={containerRef}
+      className="presentation-container"
       onMouseMove={handleMouseMove}
     >
       <div 
-        className={`absolute top-0 left-0 right-0 bg-black bg-opacity-50 transition-opacity duration-300 z-10 ${
-          showControls ? 'opacity-100' : 'opacity-0'
-        }`}
+        ref={headerRef}
+        className="presentation-header"
       >
-        <div className="flex items-center justify-between px-6 py-4">
-          <div className="flex items-center space-x-4 text-white">
-            <span className="text-sm">
+        <div className="header-content">
+          <div className="slide-info">
+            <span className="slide-counter">
               Slide {currentSlideIndex + 1} of {totalSlides}
             </span>
             {!isPresenter && (
-              <span className="text-xs bg-gray-600 px-2 py-1 rounded">
+              <span className="viewing-badge">
                 Viewing mode
               </span>
             )}
@@ -117,71 +127,67 @@ const PresentationModal: React.FC<PresentationModalProps> = ({
           
           <button
             onClick={onClose}
-            className="text-white hover:text-gray-300 transition-colors p-2"
+            className="close-button"
             title={isPresenter ? "Stop presentation (ESC)" : "Leave presentation (ESC)"}
           >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="close-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
       </div>
 
-      <div className="flex-1 flex items-center justify-center p-8">
+      <div className="slide-content">
         {currentSlide ? (
-          <div className="shadow-2xl rounded-lg overflow-hidden" style={{ 
-            transform: 'scale(min(90vw/800px, 70vh/600px))',
-            transformOrigin: 'center'
-          }}>
+          <div className="slide-wrapper">
             <SlideCanvas
               slide={currentSlide}
               canEdit={false}
               selectedTool="select"
               selectedColor="#000000"
               skipElementsLoading={false}
-              enableZoomAndPan={true}
+              enableZoomAndPan={false}
               onObjectCreate={() => {}}
               onObjectModified={() => {}}
               onSelectionChanged={() => {}}
             />
           </div>
         ) : (
-          <div className="text-white text-center">
-            <h2 className="text-2xl mb-4">No slide available</h2>
-            <p>Slide {currentSlideIndex + 1} could not be loaded</p>
+          <div className="no-slide">
+            <h2 className="no-slide-title">No slide available</h2>
+            <p className="no-slide-text">Slide {currentSlideIndex + 1} could not be loaded</p>
           </div>
         )}
       </div>
 
       {isPresenter && (
         <div 
-          className={`absolute bottom-8 left-1/2 transform -translate-x-1/2 transition-opacity duration-300 ${
-            showControls ? 'opacity-100' : 'opacity-0'
-          }`}
+          ref={controlsRef}
+          className="presentation-controls"
         >
-          <div className="flex items-center space-x-4 bg-black bg-opacity-50 rounded-lg px-6 py-3">
+          <div className="controls-content">
             <button
               onClick={onPrevSlide}
               disabled={currentSlideIndex === 0}
-              className="text-white hover:text-gray-300 disabled:text-gray-600 disabled:cursor-not-allowed transition-colors p-2"
+              className="control-button"
               title="Previous slide (←)"
             >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="control-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>
             </button>
             
-            <span className="text-white text-sm">
+            <span className="slide-progress">
               {currentSlideIndex + 1} / {totalSlides}
             </span>
             
             <button
               onClick={onNextSlide}
               disabled={currentSlideIndex >= totalSlides - 1}
-              className="text-white hover:text-gray-300 disabled:text-gray-600 disabled:cursor-not-allowed transition-colors p-2"
+              className="control-button"
               title="Next slide (→ or Space)"
             >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="control-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
             </button>

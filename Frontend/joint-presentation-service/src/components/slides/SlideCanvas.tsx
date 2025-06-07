@@ -680,6 +680,18 @@ const SlideCanvas: React.FC<SlideCanvasProps> = ({
     };
   }, [handleObjectModified, handleSelectionCreated, handleSelectionUpdated, handleSelectionCleared, canEdit, handleTextSelectionChanged, handleTextEditing, enableZoomAndPan, handleMouseWheel, handleMouseDown, handleMouseMove, handleMouseUp]);
 
+  useEffect(() => {
+    if (fabricCanvasRef.current && canvasSize) {
+      const defaultWidth = 800;
+      const defaultHeight = 600;
+      const scaleX = canvasSize.width / defaultWidth;
+      const scaleY = canvasSize.height / defaultHeight;
+      const scale = Math.min(scaleX, scaleY);
+      
+      fabricCanvasRef.current.setZoom(scale);
+      fabricCanvasRef.current.setViewportTransform([scale, 0, 0, scale, 0, 0]);
+    }
+  }, [canvasSize, fabricCanvasRef.current]);
   
   useEffect(() => {
     updateCursor();

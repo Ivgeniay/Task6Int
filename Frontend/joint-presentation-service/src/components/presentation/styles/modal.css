@@ -1,0 +1,145 @@
+.presentation-container {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.8);
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+}
+
+.presentation-header {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 10;
+  transform: translateY(-100%);
+  transition: transform 0.3s ease;
+}
+
+.presentation-header.visible {
+  transform: translateY(0);
+}
+
+.header-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.5rem;
+}
+
+.slide-info {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  color: white;
+}
+
+.slide-counter {
+  font-size: 0.875rem;
+}
+
+.viewing-badge {
+  font-size: 0.75rem;
+  background-color: rgb(75, 85, 99);
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+}
+
+.close-button {
+  color: white;
+  padding: 0.5rem;
+  transition: color 0.2s;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.close-button:hover {
+  color: rgb(209, 213, 219);
+}
+
+.close-icon {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+.slide-content {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+}
+
+.slide-wrapper {
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  border-radius: 0.5rem;
+  overflow: hidden;
+  transform: scale(min(90vw/800px, 70vh/600px));
+  transform-origin: center;
+}
+
+.no-slide {
+  text-align: center;
+  color: white;
+}
+
+.no-slide-title {
+  font-size: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.no-slide-text {
+  font-size: 1rem;
+}
+
+.presentation-controls {
+  position: absolute;
+  bottom: 2rem;
+  left: 50%;
+  transform: translateX(-50%) translateY(100%);
+  transition: transform 0.3s ease;
+}
+
+.presentation-controls.visible {
+  transform: translateX(-50%) translateY(0);
+}
+
+.controls-content {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  background-color: rgba(0, 0, 0, 0.5);
+  border-radius: 0.5rem;
+  padding: 0.75rem 1.5rem;
+}
+
+.control-button {
+  color: white;
+  padding: 0.5rem;
+  transition: color 0.2s;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.control-button:hover:not(:disabled) {
+  color: rgb(209, 213, 219);
+}
+
+.control-button:disabled {
+  color: rgb(75, 85, 99);
+  cursor: not-allowed;
+}
+
+.control-icon {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+.slide-progress {
+  color: white;
+  font-size: 0.875rem;
+}

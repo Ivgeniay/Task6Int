@@ -32,6 +32,16 @@ namespace JointPresentationService.Persistence.Repositories
             return presentation;
         }
 
+        public async Task UpdateTimestampAsync(int presentationId)
+        {
+            var presentation = await _context.Presentations.FindAsync(presentationId);
+            if (presentation != null)
+            {
+                presentation.UpdatedAt = DateTime.UtcNow;
+                await _context.SaveChangesAsync();
+            }
+        }
+
         public async Task<Presentation> UpdateAsync(Presentation presentation)
         {
             _context.Presentations.Update(presentation);

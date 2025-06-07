@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Presentation } from '../../types/api';
+import { Presentation, Slide } from '../../types/api';
+import apiService from '../../services/api';
+import SlidePreviewThumbnail from '../slides/SlidePreviewThumbnail';
 
 interface PresentationTableProps {
   presentations: Presentation[];
@@ -17,9 +19,12 @@ const PresentationTable: React.FC<PresentationTableProps> = ({
   onDeletePresentation
 }) => {
   const navigate = useNavigate();
+  const expandedSlideDataRef = useRef<Map<number, Slide>>(new Map());
+  
   const [sortField, setSortField] = useState<SortField>('updatedAt');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [expandedRow, setExpandedRow] = useState<number | null>(null);
+  const [loadingSlides, setLoadingSlides] = useState<Set<number>>(new Set());
 
   const getUserRole = (presentation: Presentation, currentUserId?: number) => {
     if (!currentUserId) return 'Viewer';
@@ -39,6 +44,39 @@ const PresentationTable: React.FC<PresentationTableProps> = ({
 
   const handleOpenPresentation = (presentationId: number) => {
     navigate(`/presentation/${presentationId}`);
+  };
+
+  const toggleRowExpansion = async (presentationId: number) => {
+    if (expandedRow === presentationId) {
+      setExpandedRow(null);
+      return;
+    }
+
+    setExpandedRow(presentationId);
+
+    if (!expandedSlideDataRef.current.has(presentationId) && !loadingSlides.has(presentationId)) {
+      const presentation = presentations.find(p => p.id === presentationId);
+      if (presentation && presentation.slides && presentation.slides.length > 0) {
+        setLoadingSlides(prev => new Set(prev).add(presentationId));
+        
+        try {
+          const firstSlide = await apiService.getSlide(presentation.slides[0].id);
+          expandedSlideDataRef.current.set(presentationId, firstSlide);
+          setLoadingSlides(prev => {
+            const newSet = new Set(prev);
+            newSet.delete(presentationId);
+            return newSet;
+          });
+        } catch (error) {
+          console.error('Failed to load slide:', error);
+          setLoadingSlides(prev => {
+            const newSet = new Set(prev);
+            newSet.delete(presentationId);
+            return newSet;
+          });
+        }
+      }
+    }
   };
 
   const sortedPresentations = [...presentations].sort((a, b) => {
@@ -105,10 +143,6 @@ const PresentationTable: React.FC<PresentationTableProps> = ({
         </svg>
       );
     }
-  };
-
-  const toggleRowExpansion = (presentationId: number) => {
-    setExpandedRow(expandedRow === presentationId ? null : presentationId);
   };
 
   if (presentations.length === 0) {
@@ -178,83 +212,103 @@ const PresentationTable: React.FC<PresentationTableProps> = ({
         </thead>
         <tbody className="bg-white divide-y divide-gray-200">
           {sortedPresentations.map((presentation) => {
+            const userRole = getUserRole(presentation, currentUserId);
+            const isExpanded = expandedRow === presentation.id;
+            const slide = expandedSlideDataRef.current.get(presentation.id);
+            const isLoading = loadingSlides.has(presentation.id);
+            
             return (
-            <React.Fragment key={presentation.id}>
-              <tr 
-                className="hover:bg-gray-50 cursor-pointer"
-                onClick={() => toggleRowExpansion(presentation.id)}
-              >
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm font-medium text-gray-900">
-                    {presentation.title}
-                  </div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {presentation.creator?.nickname || `User ${presentation.creatorId}`}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {formatDate(presentation.createdAt)}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {formatDate(presentation.updatedAt)}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  {(() => {
-                    const userRole = getUserRole(presentation, currentUserId);
-                    return (
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${roleStyles[userRole]}`}>
-                        {userRole}
-                      </span>
-                    );
-                  })()}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleOpenPresentation(presentation.id);
-                    }}
-                    className="text-blue-600 hover:text-blue-900"
-                  >
-                    Open
-                  </button>
-                </td>
-              </tr>
-              
-              {expandedRow === presentation.id && (
-                <tr>
-                  <td colSpan={6} className="px-6 py-4 bg-gray-50">
-                    <div className="space-y-3">
-                      <div className="flex items-center space-x-4">
-                        <div className="flex items-center text-sm text-gray-500">
-                          <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                          </svg>
-                          {presentation.slides?.length || 0} slides
-                        </div>
-                        <div className="flex items-center text-sm text-gray-500">
-                          <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
-                          Last updated {formatDate(presentation.updatedAt)}
-                        </div>
-                      </div>
-                      
-                      <div className="flex justify-between items-center">
-                        <div className="text-sm text-gray-600">
-                        </div>
-                        <button
-                          onClick={() => handleOpenPresentation(presentation.id)}
-                          className="px-4 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 transition-colors"
-                        >
-                          Open Presentation
-                        </button>
-                      </div>
+              <React.Fragment key={presentation.id}>
+                <tr 
+                  className="hover:bg-gray-50 cursor-pointer"
+                  onClick={() => toggleRowExpansion(presentation.id)}
+                >
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm font-medium text-gray-900">
+                      {presentation.title}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {presentation.creator?.nickname || `User ${presentation.creatorId}`}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {formatDate(presentation.createdAt)}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {formatDate(presentation.updatedAt)}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${roleStyles[userRole]}`}>
+                      {userRole}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    <div className="flex items-center justify-end space-x-2">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleOpenPresentation(presentation.id);
+                        }}
+                        className="text-blue-600 hover:text-blue-900"
+                      >
+                        Open
+                      </button>
                     </div>
                   </td>
                 </tr>
-              )}
-            </React.Fragment>
+                
+                {isExpanded && (
+                  <tr>
+                    <td colSpan={6} className="px-6 py-4 bg-gray-50">
+                      <div className="space-y-3">
+                        <div className="flex items-start space-x-6">
+                          <div className="flex-shrink-0">
+                            <SlidePreviewThumbnail
+                              slide={slide}
+                              width={200}
+                              height={150}
+                              showPlaceholder={true}
+                              placeholderText={isLoading ? "Loading..." : `${presentation.slides?.length || 0} slides`}
+                            />
+                          </div>
+                          <div className="flex-1">
+                            <div className="flex-col items-center space-y-4 mb-3">
+                              <div className="flex items-center text-sm text-gray-500">
+                                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                </svg>
+                                {presentation.slides?.length || 0} slides
+                              </div>
+                              <div className="flex items-center text-sm text-gray-500">
+                                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                Last updated {formatDate(presentation.updatedAt)}
+                              </div>
+                            </div>
+                            
+                            {userRole === 'Creator' && (
+                              <div className="flex items-end">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (window.confirm('Are you sure you want to delete this presentation? This action cannot be undone.')) {
+                                      onDeletePresentation(presentation.id);
+                                    }
+                                  }}
+                                  className="text-red-600 hover:text-red-900"
+                                >
+                                  Delete
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+              </React.Fragment>
             );
           })}
         </tbody>

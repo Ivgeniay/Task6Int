@@ -9,6 +9,7 @@ namespace JointPresentationService.Domain.Interfaces
         Task<Presentation> CreateAsync(Presentation presentation);
         Task<Presentation> UpdateAsync(Presentation presentation);
         Task<Presentation> GetBySlideIdAsync(int slideId);
+        Task UpdateTimestampAsync(int presentationId);
         Task DeleteAsync(int id);
         Task<List<Presentation>> GetAllAsync();
         Task<List<Presentation>> GetByCreatorIdAsync(int creatorId);
