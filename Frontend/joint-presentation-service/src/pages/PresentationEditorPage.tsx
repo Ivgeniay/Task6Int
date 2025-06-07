@@ -196,18 +196,6 @@ const PresentationEditorPage: React.FC<PresentationEditorPageProps> = ({ current
     });
   }, [onPresentationStopped, currentSlideIndex, slides.length]);
 
-  useEffect(() => {
-    onSlideChanged((data) => {
-      if (presentationState.mode === PresentationMode.Present) {
-        setPresentationState(prev => ({
-          ...prev,
-          currentSlideIndex: data.currentSlideIndex,
-          totalSlides: data.totalSlides
-        }));
-      }
-    });
-  }, [onSlideChanged, presentationState.mode]);
-
   const handleStartPresentation = async () => {
     if (!isCreator) return;
     
@@ -215,6 +203,14 @@ const PresentationEditorPage: React.FC<PresentationEditorPageProps> = ({ current
       await startPresentation();
     } catch (error) {
       console.error('Failed to start presentation:', error);
+    }
+  };
+
+  const handleClosePresentation = () => {
+    if (presentationState.presenterId === currentUserId) {
+      handleStopPresentation();
+    } else {
+      navigate('/');
     }
   };
 
@@ -231,6 +227,8 @@ const PresentationEditorPage: React.FC<PresentationEditorPageProps> = ({ current
   const handleNextSlide = async () => {
     if (!isCreator) return;
     
+    console.log('handleNextSlide called, current index:', presentationState.currentSlideIndex);
+    
     try {
       await nextSlide();
     } catch (error) {
@@ -240,6 +238,8 @@ const PresentationEditorPage: React.FC<PresentationEditorPageProps> = ({ current
 
   const handlePrevSlide = async () => {
     if (!isCreator) return;
+    
+    console.log('handlePrevSlide called, current index:', presentationState.currentSlideIndex);
     
     try {
       await prevSlide();
@@ -377,6 +377,25 @@ const PresentationEditorPage: React.FC<PresentationEditorPageProps> = ({ current
       setCurrentSlideWithElements(null);
     }
   }, [currentSlideIndex, slides.length, loadSlideWithElements]);
+
+  useEffect(() => {
+    onSlideChanged((data) => {
+      console.log('SlideChanged event received:', data);
+      if (presentationState.mode === PresentationMode.Present) {
+        console.log('Updating presentation state to slide:', data.currentSlideIndex);
+        setPresentationState(prev => ({
+          ...prev,
+          currentSlideIndex: data.currentSlideIndex,
+          totalSlides: data.totalSlides
+        }));
+        
+        if (data.currentSlideIndex !== currentSlideIndex) {
+          console.log('Updating currentSlideIndex from', currentSlideIndex, 'to', data.currentSlideIndex);
+          setCurrentSlideIndex(data.currentSlideIndex);
+        }
+      }
+    });
+  }, [onSlideChanged, presentationState.mode, currentSlideIndex]);
 
   const handleTextSelectionChanged = useCallback((textState: TextSelectionState) => {
     setTextSelectionState(textState);
@@ -633,12 +652,12 @@ const PresentationEditorPage: React.FC<PresentationEditorPageProps> = ({ current
 
           <PresentationModal
             isOpen={presentationState.mode === PresentationMode.Present}
-            slides={slides}
+            currentSlide={currentSlideWithElements ?? undefined}
             currentSlideIndex={presentationState.currentSlideIndex}
+            totalSlides={slides.length}
             presentationMode={presentationState.mode}
             isPresenter={presentationState.presenterId === currentUserId}
-            totalSlides={presentationState.totalSlides}
-            onClose={handleStopPresentation}
+            onClose={handleClosePresentation}
             onNextSlide={handleNextSlide}
             onPrevSlide={handlePrevSlide}
             onGoToSlide={handleGoToSlide}

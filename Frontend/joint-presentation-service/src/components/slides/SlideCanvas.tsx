@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useCallback, useState, useMemo } from 'react';
+import React, { useEffect, useRef, useCallback, useMemo } from 'react';
 import * as fabric from 'fabric';
 import { Slide, SlideElement } from '../../types/api';
 import { useDragToCreate } from '../../hooks/useDragToCreate';
@@ -81,10 +81,11 @@ const SlideCanvas: React.FC<SlideCanvasProps> = ({
   onTextSelectionChanged,
   onCanvasMethodsReady
 }) => {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  const pendingCreatedObjectsRef = useRef<PendingCreatedObject[]>([]);
+  const pendingDeletedObjectsRef = useRef<number[]>([]);
   const fabricCanvasRef = useRef<fabric.Canvas | null>(null);
-  const [pendingCreatedObjects, setPendingCreatedObjects] = useState<PendingCreatedObject[]>([]);
-  const [pendingDeletedObjects, setPendingDeletedObjects] = useState<number[]>([]);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const tempIdCounterRef = useRef(1);
 
   const lastPanPointRef = useRef({ x: 0, y: 0 });
@@ -237,23 +238,23 @@ const SlideCanvas: React.FC<SlideCanvasProps> = ({
     
     (fabricObject as any).tempId = tempId;
     
-    setPendingCreatedObjects(prev => [...prev, {
+    pendingCreatedObjectsRef.current = [...pendingCreatedObjectsRef.current, {
       fabricObject,
       properties: propertiesString,
       tempId
-    }]);
+    }];
   }, []);
 
   const handlerOwnElementCreate = useCallback((element: SlideElement) => {
-    const pendingObject = pendingCreatedObjects.find(
+    const pendingObject = pendingCreatedObjectsRef.current.find(
       pending => pending.properties === element.properties
     );
 
     if (!pendingObject) return;
 
-    if (pendingDeletedObjects.includes(pendingObject.tempId)) {
-      setPendingDeletedObjects(prev => prev.filter(id => id !== pendingObject.tempId));
-      setPendingCreatedObjects(prev => prev.filter(p => p.tempId !== pendingObject.tempId));
+    if (pendingDeletedObjectsRef.current.includes(pendingObject.tempId)) {
+      pendingDeletedObjectsRef.current = pendingDeletedObjectsRef.current.filter(id => id !== pendingObject.tempId);
+      pendingCreatedObjectsRef.current = pendingCreatedObjectsRef.current.filter(p => p.tempId !== pendingObject.tempId);
       
       if (fabricCanvasRef.current) {
         fabricCanvasRef.current.remove(pendingObject.fabricObject);
@@ -264,8 +265,8 @@ const SlideCanvas: React.FC<SlideCanvasProps> = ({
     (pendingObject.fabricObject as any).elementId = element.id;
     delete (pendingObject.fabricObject as any).tempId;
 
-    setPendingCreatedObjects(prev => prev.filter(p => p.tempId !== pendingObject.tempId));
-  }, [pendingCreatedObjects, pendingDeletedObjects]);
+    pendingCreatedObjectsRef.current = pendingCreatedObjectsRef.current.filter(p => p.tempId !== pendingObject.tempId);
+  }, []);
 
   const clearCanvas = useCallback(() => {
     if (fabricCanvasRef.current) {

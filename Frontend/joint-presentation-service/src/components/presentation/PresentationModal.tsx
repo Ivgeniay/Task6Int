@@ -3,13 +3,14 @@ import { Slide } from '../../types/api';
 import { PresentationMode } from '../../types/signalr';
 import SlideCanvas from '../slides/SlideCanvas';
 
+
 interface PresentationModalProps {
   isOpen: boolean;
-  slides: Slide[];
+  currentSlide?: Slide;
   currentSlideIndex: number;
+  totalSlides: number;
   presentationMode: PresentationMode;
   isPresenter: boolean;
-  totalSlides: number;
   onClose: () => void;
   onNextSlide: () => void;
   onPrevSlide: () => void;
@@ -18,11 +19,11 @@ interface PresentationModalProps {
 
 const PresentationModal: React.FC<PresentationModalProps> = ({
   isOpen,
-  slides,
+  currentSlide,
   currentSlideIndex,
+  totalSlides,
   presentationMode,
   isPresenter,
-  totalSlides,
   onClose,
   onNextSlide,
   onPrevSlide,
@@ -30,8 +31,6 @@ const PresentationModal: React.FC<PresentationModalProps> = ({
 }) => {
   const [showControls, setShowControls] = useState(false);
   const [mouseTimer, setMouseTimer] = useState<NodeJS.Timeout | null>(null);
-
-  const currentSlide = slides[currentSlideIndex];
 
   const handleMouseMove = useCallback(() => {
     setShowControls(true);

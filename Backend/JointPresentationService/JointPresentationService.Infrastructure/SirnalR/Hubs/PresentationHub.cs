@@ -640,14 +640,15 @@ namespace JointPresentationService.Infrastructure.SirnalR.Hubs
                     });
 
                 var groupName = InfrastructureConstants.SignalRConstants.Groups.GetPresentationGroup(presentationId);
-                await Clients.Group(groupName).SendAsync(InfrastructureConstants.SignalRConstants.Events.PresentationStarted, new PresentationStartedEvent
+                var _event = new PresentationStartedEvent
                 {
                     PresentationId = presentationId,
                     PresenterId = userId,
                     PresenterNickname = nickname,
                     CurrentSlideIndex = 0,
                     TotalSlides = slides.Count
-                });
+                };
+                await Clients.Group(groupName).SendAsync(InfrastructureConstants.SignalRConstants.Events.PresentationStarted, _event);
             }
             catch (Exception ex)
             {

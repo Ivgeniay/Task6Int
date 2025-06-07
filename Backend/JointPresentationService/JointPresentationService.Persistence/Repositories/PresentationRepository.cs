@@ -16,6 +16,7 @@ namespace JointPresentationService.Persistence.Repositories
         public async Task<Presentation?> GetByIdAsync(int id) =>
             await _context.Presentations
             .AsNoTracking()
+            .Include(p => p.Slides.OrderBy(s => s.Order))
             .FirstOrDefaultAsync(p => p.Id == id);
 
         public async Task<Presentation?> GetByIdWithSlidesAsync(int id) =>
