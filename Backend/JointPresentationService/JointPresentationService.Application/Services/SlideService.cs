@@ -27,7 +27,7 @@ namespace JointPresentationService.Application.Services
             {
                 throw new ArgumentException("Presentation not found");
             }
-            return presentation.Slides;
+            return presentation.Slides ?? new List<Slide>();
         }
 
         public async Task<Slide> GetSlideWithElementsAsync(int slideId)
@@ -177,6 +177,8 @@ namespace JointPresentationService.Application.Services
 
         public async Task<Presentation> GetPresentationBySlideId(int slideId)
         {
+
+            //return await _presentationRepository.GetBySlideIdAsync(slideId);
             var slide = await _slideRepository.GetByIdAsync(slideId);
             if (slide == null)
             {

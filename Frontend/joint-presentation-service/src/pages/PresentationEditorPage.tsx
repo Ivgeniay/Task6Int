@@ -329,6 +329,18 @@ const PresentationEditorPage: React.FC<PresentationEditorPageProps> = ({ current
           invalidateSlideCache(data.slideId);
         } else {
           canvasMethodsRef.handlerOwnElementCreate(data.element);
+          setSlideCache(prev => {
+          const newCache = new Map(prev);
+          const cachedSlide = newCache.get(data.slideId);
+          if (cachedSlide) {
+            const updatedSlide = {
+              ...cachedSlide,
+              elements: [...(cachedSlide.elements || []), data.element]
+            };
+            newCache.set(data.slideId, updatedSlide);
+          }
+          return newCache;
+        });
         }
       }
     });
