@@ -15,6 +15,7 @@ namespace JointPresentationService.Infrastructure.SirnalR.Hubs
         private readonly IUserService _userService;
 
         private static readonly ConcurrentDictionary<int, List<UserJoinedPresentationEvent>> _connectedUsers = new();
+        private static readonly ConcurrentDictionary<int, PresentationSession> _activePresentations = new();
         private static readonly object _lockObject = new object();
 
         public PresentationHub(

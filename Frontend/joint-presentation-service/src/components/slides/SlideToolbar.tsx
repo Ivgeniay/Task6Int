@@ -13,6 +13,7 @@ interface SelectedState {
 interface SlideToolbarProps {
   selectedTool: string;
   selectedState: SelectedState;
+  textSelectionState: TextSelectionState;
   selectedColor: string;
   onToolSelect: (tool: string) => void;
   onColorChange: (color: string) => void;
@@ -28,9 +29,26 @@ interface SlideToolbarProps {
   onApplyColorToSelected?: () => void;
 }
 
+interface TextSelectionState {
+  isBold: boolean;
+  isItalic: boolean;
+  isUnderline: boolean;
+  isLinethrough: boolean;
+  fontSize: number;
+  fontFamily: string;
+  hasSelection: boolean;
+  isPartialFormat: {
+    bold: boolean;
+    italic: boolean;
+    underline: boolean;
+    linethrough: boolean;
+  };
+}
+
 const SlideToolbar: React.FC<SlideToolbarProps> = ({
   selectedTool,
   selectedState,
+  textSelectionState,
   selectedColor,
   onToolSelect,
   onColorChange,
@@ -47,11 +65,6 @@ const SlideToolbar: React.FC<SlideToolbarProps> = ({
 }) => {
   const [isShapesDropdownOpen, setIsShapesDropdownOpen] = useState(false);
   const [isColorsDropdownOpen, setIsColorsDropdownOpen] = useState(false);
-  const [fontSize, setFontSize] = useState(20);
-  const [isBold, setIsBold] = useState(false);
-  const [isItalic, setIsItalic] = useState(false);
-  const [isUnderline, setIsUnderline] = useState(false);
-  const [isStrikethrough, setIsStrikethrough] = useState(false);
   
   const shapesDropdownRef = useRef<HTMLDivElement>(null);
   const colorsDropdownRef = useRef<HTMLDivElement>(null);
@@ -115,35 +128,30 @@ const SlideToolbar: React.FC<SlideToolbarProps> = ({
   };
 
   const handleUnderlineToggle = () => {
-    setIsUnderline(!isUnderline);
     if (onTextUnderline) {
       onTextUnderline();
     }
   };
 
   const handleStrikethroughToggle = () => {
-    setIsStrikethrough(!isStrikethrough);
     if (onTextStrikethrough) {
       onTextStrikethrough();
     }
   };
 
   const handleFontSizeChange = (size: number) => {
-    setFontSize(size);
     if (onTextFontSize) {
       onTextFontSize(size);
     }
   };
 
   const handleBoldToggle = () => {
-    setIsBold(!isBold);
     if (onTextBold) {
       onTextBold();
     }
   };
 
   const handleItalicToggle = () => {
-    setIsItalic(!isItalic);
     if (onTextItalic) {
       onTextItalic();
     }
@@ -269,7 +277,7 @@ const SlideToolbar: React.FC<SlideToolbarProps> = ({
       <button
         onClick={handleBoldToggle}
         className={`flex items-center justify-center w-8 h-8 rounded text-sm font-bold transition-all duration-200 ${
-          isBold ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:bg-gray-100'
+          textSelectionState.isBold ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:bg-gray-100'
         }`}
         title="Bold"
       >
@@ -279,7 +287,7 @@ const SlideToolbar: React.FC<SlideToolbarProps> = ({
       <button
         onClick={handleItalicToggle}
         className={`flex items-center justify-center w-8 h-8 rounded text-sm font-medium italic transition-all duration-200 ${
-          isItalic ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:bg-gray-100'
+          textSelectionState.isItalic ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:bg-gray-100'
         }`}
         title="Italic"
       >
@@ -289,7 +297,7 @@ const SlideToolbar: React.FC<SlideToolbarProps> = ({
       <button
         onClick={handleUnderlineToggle}
         className={`flex items-center justify-center w-8 h-8 rounded text-sm font-medium underline transition-all duration-200 ${
-          isUnderline ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:bg-gray-100'
+          textSelectionState.isUnderline ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:bg-gray-100'
         }`}
         title="Underline"
       >
@@ -299,7 +307,7 @@ const SlideToolbar: React.FC<SlideToolbarProps> = ({
       <button
         onClick={handleStrikethroughToggle}
         className={`flex items-center justify-center w-8 h-8 rounded text-sm font-medium line-through transition-all duration-200 ${
-          isStrikethrough ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:bg-gray-100'
+          textSelectionState.isLinethrough ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:bg-gray-100'
         }`}
         title="Strikethrough"
       >
@@ -309,7 +317,7 @@ const SlideToolbar: React.FC<SlideToolbarProps> = ({
       <select 
         className="text-xs border border-gray-300 rounded px-2 py-1 ml-2"
         title="Font Size"
-        value={fontSize}
+        value={textSelectionState.fontSize}
         onChange={(e) => handleFontSizeChange(parseInt(e.target.value))}
       >
         {fontSizes.map(size => (

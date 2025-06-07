@@ -22,6 +22,22 @@ interface SelectedState {
   selectedObjectType: 'text' | 'shape' | 'mixed' | 'none';
 }
 
+interface TextSelectionState {
+  isBold: boolean;
+  isItalic: boolean;
+  isUnderline: boolean;
+  isLinethrough: boolean;
+  fontSize: number;
+  fontFamily: string;
+  hasSelection: boolean;
+  isPartialFormat: {
+    bold: boolean;
+    italic: boolean;
+    underline: boolean;
+    linethrough: boolean;
+  };
+}
+
 const PresentationEditorPage: React.FC<PresentationEditorPageProps> = ({ currentUserId }) => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -35,6 +51,7 @@ const PresentationEditorPage: React.FC<PresentationEditorPageProps> = ({ current
   const [error, setError] = useState<string>('');
   const [canEdit, setCanEdit] = useState(false);
   const [slideCache, setSlideCache] = useState<Map<number, Slide>>(new Map());
+
   
   const [selectedTool, setSelectedTool] = useState<string>('select');
   const [selectedColor, setSelectedColor] = useState<string>('#3B82F6');
@@ -46,6 +63,21 @@ const PresentationEditorPage: React.FC<PresentationEditorPageProps> = ({ current
     isSingleShape: false,
     isMultiple: false,
     selectedObjectType: 'none'
+  });
+  const [textSelectionState, setTextSelectionState] = useState<TextSelectionState>({
+    isBold: false,
+    isItalic: false,
+    isUnderline: false,
+    isLinethrough: false,
+    fontSize: 20,
+    fontFamily: 'Arial',
+    hasSelection: false,
+    isPartialFormat: {
+      bold: false,
+      italic: false,
+      underline: false,
+      linethrough: false
+    }
   });
 
   const [canvasMethodsRef, setCanvasMethodsRef] = useState<{
@@ -246,6 +278,10 @@ const PresentationEditorPage: React.FC<PresentationEditorPageProps> = ({ current
       setCurrentSlideWithElements(null);
     }
   }, [currentSlideIndex, slides.length, loadSlideWithElements]);
+
+  const handleTextSelectionChanged = useCallback((textState: TextSelectionState) => {
+    setTextSelectionState(textState);
+  }, []);
 
   const handleSlideSelect = (slideIndex: number) => {
     setCurrentSlideIndex(slideIndex);
@@ -493,6 +529,7 @@ const PresentationEditorPage: React.FC<PresentationEditorPageProps> = ({ current
         <SlideToolbar
           selectedTool={selectedTool}
           selectedState={selectedState}
+          textSelectionState={textSelectionState}
           selectedColor={selectedColor}
           onToolSelect={handleToolSelect}
           onColorChange={handleColorChange}
@@ -531,6 +568,7 @@ const PresentationEditorPage: React.FC<PresentationEditorPageProps> = ({ current
             onObjectCreate={handleObjectCreate}
             onObjectModified={handleObjectModified}
             onSelectionChanged={setSelectedState}
+            onTextSelectionChanged={handleTextSelectionChanged}
             onCanvasMethodsReady={handleCanvasMethodsReady}
           />
         </div>

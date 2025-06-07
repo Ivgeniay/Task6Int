@@ -13,6 +13,22 @@ interface SelectedState {
   selectedObjectType: 'text' | 'shape' | 'mixed' | 'none';
 }
 
+interface TextSelectionState {
+  isBold: boolean;
+  isItalic: boolean;
+  isUnderline: boolean;
+  isLinethrough: boolean;
+  fontSize: number;
+  fontFamily: string;
+  hasSelection: boolean;
+  isPartialFormat: {
+    bold: boolean;
+    italic: boolean;
+    underline: boolean;
+    linethrough: boolean;
+  };
+}
+
 interface PendingCreatedObject {
   fabricObject: fabric.Object;
   properties: string;
@@ -29,6 +45,7 @@ interface SlideCanvasProps {
   onObjectCreate: (properties: any) => void;
   onObjectModified: (elementId: number, properties: any) => void;
   onSelectionChanged: (selectedState: SelectedState) => void;
+  onTextSelectionChanged?: (textState: TextSelectionState) => void;
   onCanvasMethodsReady?: (methods: {
     updateElement: (element: SlideElement) => void;
     removeElement: (elementId: number) => void;
@@ -52,6 +69,7 @@ const SlideCanvas: React.FC<SlideCanvasProps> = ({
   onObjectCreate,
   onObjectModified,
   onSelectionChanged,
+  onTextSelectionChanged,
   onCanvasMethodsReady
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -106,13 +124,91 @@ const SlideCanvas: React.FC<SlideCanvasProps> = ({
     }
   }, [canEdit, slide, onObjectModified]);
 
+  const analyzeTextSelection = useCallback((textObject: fabric.Textbox): TextSelectionState => {
+    const selectionStart = textObject.selectionStart || 0;
+    const selectionEnd = textObject.selectionEnd || 0;
+    const hasSelection = selectionStart !== selectionEnd;
+    
+    if (!hasSelection) {
+      return {
+        isBold: textObject.fontWeight === 'bold',
+        isItalic: textObject.fontStyle === 'italic', 
+        isUnderline: textObject.underline || false,
+        isLinethrough: textObject.linethrough || false,
+        fontSize: textObject.fontSize || 20,
+        fontFamily: textObject.fontFamily || 'Arial',
+        hasSelection: false,
+        isPartialFormat: {
+          bold: false,
+          italic: false,
+          underline: false,
+          linethrough: false
+        }
+      };
+    }
+
+    const selectionStyles = textObject.getSelectionStyles(selectionStart, selectionEnd);
+    
+    const boldStyles = selectionStyles.filter(style => style && style.fontWeight === 'bold');
+    const italicStyles = selectionStyles.filter(style => style && style.fontStyle === 'italic');
+    const underlineStyles = selectionStyles.filter(style => style && style.underline === true);
+    const linethroughStyles = selectionStyles.filter(style => style && style.linethrough === true);
+    
+    const allBold = boldStyles.length === selectionStyles.length;
+    const someBold = boldStyles.length > 0;
+    const allItalic = italicStyles.length === selectionStyles.length;
+    const someItalic = italicStyles.length > 0;
+    const allUnderline = underlineStyles.length === selectionStyles.length;
+    const someUnderline = underlineStyles.length > 0;
+    const allLinethrough = linethroughStyles.length === selectionStyles.length;
+    const someLinethrough = linethroughStyles.length > 0;
+
+    const firstStyle = selectionStyles[0] || {};
+    
+    return {
+      isBold: allBold,
+      isItalic: allItalic,
+      isUnderline: allUnderline,
+      isLinethrough: allLinethrough,
+      fontSize: firstStyle.fontSize || textObject.fontSize || 20,
+      fontFamily: firstStyle.fontFamily || textObject.fontFamily || 'Arial',
+      hasSelection: true,
+      isPartialFormat: {
+        bold: someBold && !allBold,
+        italic: someItalic && !allItalic,
+        underline: someUnderline && !allUnderline,
+        linethrough: someLinethrough && !allLinethrough
+      }
+    };
+  }, []);
+
+  const updateToolbarFromSelection = useCallback(() => {
+    if (!fabricCanvasRef.current || !onTextSelectionChanged) return;
+
+    const activeObject = fabricCanvasRef.current.getActiveObject();
+    if (activeObject && (activeObject.type === 'textbox' || activeObject.type === 'Textbox')) {
+      const textObject = activeObject as fabric.Textbox;
+      const textState = analyzeTextSelection(textObject);
+      onTextSelectionChanged(textState);
+    }
+  }, [onTextSelectionChanged, analyzeTextSelection]);
+
+  const handleTextSelectionChanged = useCallback(() => {
+    updateToolbarFromSelection();
+  }, [updateToolbarFromSelection]);
+
+  const handleTextEditing = useCallback(() => {
+    updateToolbarFromSelection();
+  }, [updateToolbarFromSelection]);
+
   const handleSelectionCreated = useCallback((e: any) => {
     updateSelectionState(e.selected || []);
   }, [updateSelectionState]);
 
   const handleSelectionUpdated = useCallback((e: any) => {
     updateSelectionState(e.selected || []);
-  }, [updateSelectionState]);
+    updateToolbarFromSelection();
+  }, [updateSelectionState, updateToolbarFromSelection]);
 
   const handleSelectionCleared = useCallback(() => {
     updateSelectionState([]);
@@ -174,7 +270,7 @@ const SlideCanvas: React.FC<SlideCanvasProps> = ({
 
     try {
       const properties = JSON.parse(element.properties);
-      const { type, version, ...cleanProperties } = properties;
+      const { type, version, styles, ...cleanProperties } = properties;
       let fabricObject: fabric.Object | null = null;
 
       switch (type) {
@@ -183,6 +279,19 @@ const SlideCanvas: React.FC<SlideCanvasProps> = ({
         case 'Text':
         case 'text':
           fabricObject = new fabric.Textbox(properties.text || 'New Text', cleanProperties);
+          
+          if (styles && Array.isArray(styles)) {
+            const stylesObject: any = {};
+            styles.forEach((styleRange: any) => {
+              for (let i = styleRange.start; i < styleRange.end; i++) {
+                if (!stylesObject[0]) stylesObject[0] = {};
+                stylesObject[0][i] = { ...styleRange.style };
+              }
+            });
+            
+            (fabricObject as fabric.Textbox).styles = stylesObject;
+            (fabricObject as fabric.Textbox).initDimensions();
+          }
           break;
         case 'Rect':
         case 'rect':
@@ -243,14 +352,56 @@ const SlideCanvas: React.FC<SlideCanvasProps> = ({
     if (fabricObject) {
       try {
         const properties = JSON.parse(element.properties);
-        const { type, ...updateProperties } = properties;
-        fabricObject.set(updateProperties);
+        
+        if ((fabricObject.type === 'textbox' || fabricObject.type === 'Textbox') && properties.styles) {
+          const textObject = fabricObject as fabric.Textbox;
+          const { type, styles, ...updateProperties } = properties;
+          
+          textObject.set(updateProperties);
+          
+          if (styles && Array.isArray(styles)) {
+            const stylesObject: any = {};
+            styles.forEach((styleRange: any) => {
+              for (let i = styleRange.start; i < styleRange.end; i++) {
+                if (!stylesObject[0]) stylesObject[0] = {};
+                stylesObject[0][i] = { ...styleRange.style };
+              }
+            });
+            
+            textObject.styles = stylesObject;
+          }
+          
+          textObject.initDimensions();
+          textObject.setCoords();
+        } else {
+          const { type, ...updateProperties } = properties;
+          fabricObject.set(updateProperties);
+        }
+        
         fabricCanvasRef.current.renderAll();
       } catch (error) {
         console.error('Error updating element:', error);
       }
     }
   }, []);
+  
+  // const updateElementOnCanvas = useCallback((element: SlideElement) => {
+  //   if (!fabricCanvasRef.current) return;
+
+  //   const objects = fabricCanvasRef.current.getObjects();
+  //   const fabricObject = objects.find((obj: any) => obj.elementId === element.id);
+    
+  //   if (fabricObject) {
+  //     try {
+  //       const properties = JSON.parse(element.properties);
+  //       const { type, ...updateProperties } = properties;
+  //       fabricObject.set(updateProperties);
+  //       fabricCanvasRef.current.renderAll();
+  //     } catch (error) {
+  //       console.error('Error updating element:', error);
+  //     }
+  //   }
+  // }, []);
 
   const removeElementFromCanvas = useCallback((elementId: number) => {
     if (!fabricCanvasRef.current) return;
@@ -289,31 +440,68 @@ const SlideCanvas: React.FC<SlideCanvasProps> = ({
     const activeObject = fabricCanvasRef.current.getActiveObject();
     if (!activeObject || (activeObject.type !== 'textbox' && activeObject.type !== 'Textbox')) return;
 
-    let newValue = value;
+    const textObject = activeObject as fabric.Textbox;
+    const selectionStart = textObject.selectionStart || 0;
+    const selectionEnd = textObject.selectionEnd || 0;
+    const hasSelection = selectionStart !== selectionEnd;
 
-    if (property === 'fontWeight') {
-      const currentWeight = activeObject.get('fontWeight') || 'normal';
-      newValue = currentWeight === 'bold' ? 'normal' : 'bold';
-    } else if (property === 'fontStyle') {
-      const currentStyle = activeObject.get('fontStyle') || 'normal';
-      newValue = currentStyle === 'italic' ? 'normal' : 'italic';
-    } else if (property === 'underline') {
-      const currentUnderline = activeObject.get('underline') || false;
-      newValue = !currentUnderline;
-    } else if (property === 'linethrough') {
-      const currentLinethrough = activeObject.get('linethrough') || false;
-      newValue = !currentLinethrough;
+    if (hasSelection) {
+      let newValue = value;
+      
+      if (property === 'fontWeight') {
+        const currentStyles = textObject.getSelectionStyles(selectionStart, selectionEnd);
+        const allBold = currentStyles.every(style => style && style.fontWeight === 'bold');
+        newValue = allBold ? 'normal' : 'bold';
+      } else if (property === 'fontStyle') {
+        const currentStyles = textObject.getSelectionStyles(selectionStart, selectionEnd);
+        const allItalic = currentStyles.every(style => style && style.fontStyle === 'italic');
+        newValue = allItalic ? 'normal' : 'italic';
+      } else if (property === 'underline') {
+        const currentStyles = textObject.getSelectionStyles(selectionStart, selectionEnd);
+        const allUnderline = currentStyles.every(style => style && style.underline === true);
+        newValue = !allUnderline;
+      } else if (property === 'linethrough') {
+        const currentStyles = textObject.getSelectionStyles(selectionStart, selectionEnd);
+        const allLinethrough = currentStyles.every(style => style && style.linethrough === true);
+        newValue = !allLinethrough;
+      }
+
+      const selectionStyles: any = {};
+      selectionStyles[property] = newValue;
+      textObject.setSelectionStyles(selectionStyles, selectionStart, selectionEnd);
+    } else {
+      let newValue = value;
+
+      if (property === 'fontWeight') {
+        const currentWeight = textObject.get('fontWeight') || 'normal';
+        newValue = currentWeight === 'bold' ? 'normal' : 'bold';
+      } else if (property === 'fontStyle') {
+        const currentStyle = textObject.get('fontStyle') || 'normal';
+        newValue = currentStyle === 'italic' ? 'normal' : 'italic';
+      } else if (property === 'underline') {
+        const currentUnderline = textObject.get('underline') || false;
+        newValue = !currentUnderline;
+      } else if (property === 'linethrough') {
+        const currentLinethrough = textObject.get('linethrough') || false;
+        newValue = !currentLinethrough;
+      }
+
+      textObject.set(property, newValue);
     }
 
-    activeObject.set(property, newValue);
     fabricCanvasRef.current.renderAll();
+
+    if (onTextSelectionChanged) {
+      const textState = analyzeTextSelection(textObject);
+      onTextSelectionChanged(textState);
+    }
 
     const elementId = (activeObject as any).elementId;
     if (elementId) {
       const properties = activeObject.toJSON();
       onObjectModified(elementId, properties);
     }
-  }, [canEdit, onObjectModified]);
+  }, [canEdit, onObjectModified, onTextSelectionChanged, analyzeTextSelection]);
 
   const applyColorToSelected = useCallback(() => {
     if (!fabricCanvasRef.current || !canEdit) return;
@@ -349,6 +537,7 @@ const SlideCanvas: React.FC<SlideCanvasProps> = ({
     }
   }, [selectedTool]);
 
+
   useDragToCreate({
     canvas: fabricCanvasRef.current,
     selectedTool,
@@ -374,10 +563,14 @@ const SlideCanvas: React.FC<SlideCanvasProps> = ({
     canvas.on('selection:updated', handleSelectionUpdated);
     canvas.on('selection:cleared', handleSelectionCleared);
 
+    canvas.on('text:selection:changed', handleTextSelectionChanged);
+    canvas.on('text:editing:entered', handleTextEditing);
+    canvas.on('text:editing:exited', handleTextEditing);
+
     return () => {
       canvas.dispose();
     };
-  }, [handleObjectModified, handleSelectionCreated, handleSelectionUpdated, handleSelectionCleared, canEdit]);
+  }, [handleObjectModified, handleSelectionCreated, handleSelectionUpdated, handleSelectionCleared, canEdit, updateToolbarFromSelection, handleTextSelectionChanged, handleTextEditing]);
 
   useEffect(() => {
     updateCursor();
