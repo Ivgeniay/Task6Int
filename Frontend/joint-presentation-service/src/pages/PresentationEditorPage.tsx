@@ -7,6 +7,9 @@ import SlideCanvas from '../components/slides/SlideCanvas';
 import SlideToolbar from '../components/slides/SlideToolbar';
 import UserList from '../components/users/UserList';
 import apiService from '../services/api';
+import { PresentationMode, PresentationState } from '../types/signalr';
+import PresentationModal from '../components/presentation/PresentationModal';
+
 
 interface PresentationEditorPageProps {
   currentUserId?: number;
@@ -51,7 +54,11 @@ const PresentationEditorPage: React.FC<PresentationEditorPageProps> = ({ current
   const [error, setError] = useState<string>('');
   const [canEdit, setCanEdit] = useState(false);
   const [slideCache, setSlideCache] = useState<Map<number, Slide>>(new Map());
-
+  const [presentationState, setPresentationState] = useState<PresentationState>({
+    mode: PresentationMode.Edit,
+    currentSlideIndex: 0,
+    totalSlides: 0
+  });
   
   const [selectedTool, setSelectedTool] = useState<string>('select');
   const [selectedColor, setSelectedColor] = useState<string>('#3B82F6');
@@ -93,6 +100,14 @@ const PresentationEditorPage: React.FC<PresentationEditorPageProps> = ({ current
   } | null>(null);
 
   const {
+    startPresentation,
+    stopPresentation,
+    nextSlide,
+    prevSlide,
+    goToSlide,
+    onPresentationStarted,
+    onPresentationStopped,
+    onSlideChanged,
     joinPresentation,
     leavePresentation,
     addSlideElement,
@@ -158,6 +173,90 @@ const PresentationEditorPage: React.FC<PresentationEditorPageProps> = ({ current
       setSlideLoading(false);
     }
   }, [slides, slideCache]);
+
+  useEffect(() => {
+    onPresentationStarted((data) => {
+      setPresentationState({
+        mode: PresentationMode.Present,
+        currentSlideIndex: data.currentSlideIndex,
+        presenterId: data.presenterId,
+        presenterNickname: data.presenterNickname,
+        totalSlides: data.totalSlides
+      });
+    });
+  }, [onPresentationStarted]);
+
+  useEffect(() => {
+    onPresentationStopped((data) => {
+      setPresentationState({
+        mode: PresentationMode.Edit,
+        currentSlideIndex: currentSlideIndex,
+        totalSlides: slides.length
+      });
+    });
+  }, [onPresentationStopped, currentSlideIndex, slides.length]);
+
+  useEffect(() => {
+    onSlideChanged((data) => {
+      if (presentationState.mode === PresentationMode.Present) {
+        setPresentationState(prev => ({
+          ...prev,
+          currentSlideIndex: data.currentSlideIndex,
+          totalSlides: data.totalSlides
+        }));
+      }
+    });
+  }, [onSlideChanged, presentationState.mode]);
+
+  const handleStartPresentation = async () => {
+    if (!isCreator) return;
+    
+    try {
+      await startPresentation();
+    } catch (error) {
+      console.error('Failed to start presentation:', error);
+    }
+  };
+
+  const handleStopPresentation = async () => {
+    if (!isCreator) return;
+    
+    try {
+      await stopPresentation();
+    } catch (error) {
+      console.error('Failed to stop presentation:', error);
+    }
+  };
+
+  const handleNextSlide = async () => {
+    if (!isCreator) return;
+    
+    try {
+      await nextSlide();
+    } catch (error) {
+      console.error('Failed to go to next slide:', error);
+    }
+  };
+
+  const handlePrevSlide = async () => {
+    if (!isCreator) return;
+    
+    try {
+      await prevSlide();
+    } catch (error) {
+      console.error('Failed to go to previous slide:', error);
+    }
+  };
+
+  const handleGoToSlide = async (slideIndex: number) => {
+    if (!isCreator) return;
+    
+    try {
+      await goToSlide(slideIndex);
+    } catch (error) {
+      console.error('Failed to go to slide:', error);
+    }
+  };
 
   useEffect(() => {
     onSlideDeleted((data) => {
@@ -519,9 +618,31 @@ const PresentationEditorPage: React.FC<PresentationEditorPageProps> = ({ current
           }`}>
             {userRole}
           </span>
-          <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-            Present
-          </button>
+          {isCreator && (
+            <button 
+              onClick={presentationState.mode === PresentationMode.Present ? handleStopPresentation : handleStartPresentation}
+              className={`px-4 py-2 text-white rounded-lg transition-colors ${
+                presentationState.mode === PresentationMode.Present
+                  ? 'bg-red-600 hover:bg-red-700'
+                  : 'bg-blue-600 hover:bg-blue-700'
+              }`}
+            >
+              {presentationState.mode === PresentationMode.Present ? 'Stop Present' : 'Present'}
+            </button>
+          )}
+
+          <PresentationModal
+            isOpen={presentationState.mode === PresentationMode.Present}
+            slides={slides}
+            currentSlideIndex={presentationState.currentSlideIndex}
+            presentationMode={presentationState.mode}
+            isPresenter={presentationState.presenterId === currentUserId}
+            totalSlides={presentationState.totalSlides}
+            onClose={handleStopPresentation}
+            onNextSlide={handleNextSlide}
+            onPrevSlide={handlePrevSlide}
+            onGoToSlide={handleGoToSlide}
+          />
         </div>
       </div>
 

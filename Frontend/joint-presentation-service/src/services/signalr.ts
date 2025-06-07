@@ -18,7 +18,10 @@ import {
   EditorRemovedEvent,
   UserUpdateRightsEvent,
   ErrorEvent,
-  SlideDeletedEvent
+  SlideDeletedEvent,
+  PresentationStartedEvent,
+  PresentationStoppedEvent,
+  SlideChangedEvent
 } from '../types/signalr';
 
 class SignalRService {
@@ -181,6 +184,18 @@ class SignalRService {
     this.connection.on(SIGNALR_EVENTS.ERROR, (data: ErrorEvent) => {
       this.emit(SIGNALR_EVENTS.ERROR, data);
     });
+
+    this.connection.on(SIGNALR_EVENTS.PRESENTATION_STARTED, (data: PresentationStartedEvent) => {
+      this.emit(SIGNALR_EVENTS.PRESENTATION_STARTED, data);
+    });
+
+    this.connection.on(SIGNALR_EVENTS.PRESENTATION_STOPPED, (data: PresentationStoppedEvent) => {
+      this.emit(SIGNALR_EVENTS.PRESENTATION_STOPPED, data);
+    });
+
+    this.connection.on(SIGNALR_EVENTS.SLIDE_CHANGED, (data: SlideChangedEvent) => {
+      this.emit(SIGNALR_EVENTS.SLIDE_CHANGED, data);
+    });
   }
 
   async connect(): Promise<void> {
@@ -334,6 +349,46 @@ class SignalRService {
     }
 
     await this.connection.invoke('RemoveEditorRights', presentationId, userId);
+  }
+
+  async startPresentation(): Promise<void> {
+    if (!this.connection || !this.connectionState.isConnected) {
+      throw new Error('Not connected to SignalR hub');
+    }
+
+    await this.connection.invoke('StartPresentation');
+  }
+
+  async stopPresentation(): Promise<void> {
+    if (!this.connection || !this.connectionState.isConnected) {
+      throw new Error('Not connected to SignalR hub');
+    }
+
+    await this.connection.invoke('StopPresentation');
+  }
+
+  async nextSlide(): Promise<void> {
+    if (!this.connection || !this.connectionState.isConnected) {
+      throw new Error('Not connected to SignalR hub');
+    }
+
+    await this.connection.invoke('NextSlide');
+  }
+
+  async prevSlide(): Promise<void> {
+    if (!this.connection || !this.connectionState.isConnected) {
+      throw new Error('Not connected to SignalR hub');
+    }
+
+    await this.connection.invoke('PrevSlide');
+  }
+
+  async goToSlide(slideIndex: number): Promise<void> {
+    if (!this.connection || !this.connectionState.isConnected) {
+      throw new Error('Not connected to SignalR hub');
+    }
+
+    await this.connection.invoke('GoToSlide', slideIndex);
   }
 
   on(eventName: string, handler: (data: any) => void): void {

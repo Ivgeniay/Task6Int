@@ -19,7 +19,10 @@ export const SIGNALR_EVENTS = {
   EDITOR_REMOVED: 'EditorRemoved',
   USER_UPDATE_RIGHTS: 'UserUpdateRights',
   ERROR: 'Error',
-  CONNECTED_USERS_UPDATED: 'ConnectedUsersListUpdated'
+  CONNECTED_USERS_UPDATED: 'ConnectedUsersListUpdated',
+  PRESENTATION_STARTED: 'PresentationStarted',
+  PRESENTATION_STOPPED: 'PresentationStopped', 
+  SLIDE_CHANGED: 'SlideChanged',
 } as const;
 
 export interface ConnectedUsersListUpdatedEvent {
@@ -119,6 +122,40 @@ export interface UserUpdateRightsEvent {
   presentationId: number;
 }
 
+export interface PresentationStartedEvent {
+  presentationId: number;
+  presenterId: number;
+  presenterNickname: string;
+  currentSlideIndex: number;
+  totalSlides: number;
+}
+
+export interface PresentationStoppedEvent {
+  presentationId: number;
+  stoppedByUserId: number;
+  stoppedByNickname: string;
+}
+
+export interface SlideChangedEvent {
+  presentationId: number;
+  currentSlideIndex: number;
+  totalSlides: number;
+  changedByUserId: number;
+}
+
+export enum PresentationMode {
+  Edit = 'Edit',
+  Present = 'Present'
+}
+
+export interface PresentationState {
+  mode: PresentationMode;
+  currentSlideIndex: number;
+  presenterId?: number;
+  presenterNickname?: string;
+  totalSlides: number;
+}
+
 export interface ErrorEvent {
   message: string;
 }
@@ -142,7 +179,11 @@ export type SignalREvent =
   | EditorRemovedEvent
   | ErrorEvent
   | ConnectedUsersListUpdatedEvent 
-  | UserUpdateRightsEvent;
+  | UserUpdateRightsEvent 
+  | PresentationStartedEvent
+  | PresentationStoppedEvent
+  | SlideChangedEvent;
+
 
 export interface SignalRConnectionState {
   isConnected: boolean;
@@ -166,4 +207,9 @@ export interface PresentationHubMethods {
   deleteSlideElement: (elementId: number) => Promise<void>;
   grantEditorRights: (presentationId: number, userId: number) => Promise<void>;
   removeEditorRights: (presentationId: number, userId: number) => Promise<void>;
+  startPresentation: () => Promise<void>;
+  stopPresentation: () => Promise<void>;
+  nextSlide: () => Promise<void>;
+  prevSlide: () => Promise<void>;
+  goToSlide: (slideIndex: number) => Promise<void>;
 }

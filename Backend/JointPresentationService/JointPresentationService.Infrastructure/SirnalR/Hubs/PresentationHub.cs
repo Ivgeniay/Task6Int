@@ -15,7 +15,7 @@ namespace JointPresentationService.Infrastructure.SirnalR.Hubs
         private readonly IUserService _userService;
 
         private static readonly ConcurrentDictionary<int, List<UserJoinedPresentationEvent>> _connectedUsers = new();
-        private static readonly ConcurrentDictionary<int, PresentationSession> _activePresentations = new();
+        private static readonly ConcurrentDictionary<int, PresentationModeState> _activePresentations = new();
         private static readonly object _lockObject = new object();
 
         public PresentationHub(
@@ -577,6 +577,294 @@ namespace JointPresentationService.Infrastructure.SirnalR.Hubs
                 });
             }
             catch(Exception ex)
+            {
+                await Clients.Caller.SendAsync(InfrastructureConstants.SignalRConstants.Events.Error, new ErrorEvent
+                {
+                    Message = ex.Message
+                });
+            }
+        }
+
+        public async Task StartPresentation()
+        {
+            try
+            {
+                if (!Context.Items.TryGetValue(InfrastructureConstants.SignalRConstants.ContextKeys.UserId, out var userIdObj) ||
+                    !Context.Items.TryGetValue(InfrastructureConstants.SignalRConstants.ContextKeys.PresentationId, out var presentationIdObj) ||
+                    !Context.Items.TryGetValue(InfrastructureConstants.SignalRConstants.ContextKeys.Nickname, out var nicknameObj))
+                {
+                    await Clients.Caller.SendAsync(InfrastructureConstants.SignalRConstants.Events.Error, new ErrorEvent
+                    {
+                        Message = InfrastructureConstants.SignalRConstants.ErrorMessages.UserNotAuthenticated
+                    });
+                    return;
+                }
+
+                var userId = (int)userIdObj;
+                var presentationId = (int)presentationIdObj;
+                var nickname = (string)nicknameObj;
+
+                var presentation = await _presentationService.GetByIdAsync(presentationId);
+                if (presentation == null)
+                {
+                    await Clients.Caller.SendAsync(InfrastructureConstants.SignalRConstants.Events.Error, new ErrorEvent
+                    {
+                        Message = InfrastructureConstants.SignalRConstants.ErrorMessages.PresentationNotFound
+                    });
+                    return;
+                }
+
+                if (presentation.CreatorId != userId)
+                {
+                    await Clients.Caller.SendAsync(InfrastructureConstants.SignalRConstants.Events.Error, new ErrorEvent
+                    {
+                        Message = InfrastructureConstants.SignalRConstants.ErrorMessages.InsufficientPermissions
+                    });
+                    return;
+                }
+
+                var slides = await _slideService.GetByPresentationIdAsync(presentationId);
+
+                _activePresentations.AddOrUpdate(presentationId,
+                    new PresentationModeState
+                    {
+                        Mode = PresentationMode.Present,
+                        CurrentSlideIndex = 0,
+                        PresenterId = userId
+                    },
+                    (key, oldValue) => new PresentationModeState
+                    {
+                        Mode = PresentationMode.Present,
+                        CurrentSlideIndex = 0,
+                        PresenterId = userId
+                    });
+
+                var groupName = InfrastructureConstants.SignalRConstants.Groups.GetPresentationGroup(presentationId);
+                await Clients.Group(groupName).SendAsync(InfrastructureConstants.SignalRConstants.Events.PresentationStarted, new PresentationStartedEvent
+                {
+                    PresentationId = presentationId,
+                    PresenterId = userId,
+                    PresenterNickname = nickname,
+                    CurrentSlideIndex = 0,
+                    TotalSlides = slides.Count
+                });
+            }
+            catch (Exception ex)
+            {
+                await Clients.Caller.SendAsync(InfrastructureConstants.SignalRConstants.Events.Error, new ErrorEvent
+                {
+                    Message = ex.Message
+                });
+            }
+        }
+
+        public async Task StopPresentation()
+        {
+            try
+            {
+                if (!Context.Items.TryGetValue(InfrastructureConstants.SignalRConstants.ContextKeys.UserId, out var userIdObj) ||
+                    !Context.Items.TryGetValue(InfrastructureConstants.SignalRConstants.ContextKeys.PresentationId, out var presentationIdObj) ||
+                    !Context.Items.TryGetValue(InfrastructureConstants.SignalRConstants.ContextKeys.Nickname, out var nicknameObj))
+                {
+                    await Clients.Caller.SendAsync(InfrastructureConstants.SignalRConstants.Events.Error, new ErrorEvent
+                    {
+                        Message = InfrastructureConstants.SignalRConstants.ErrorMessages.UserNotAuthenticated
+                    });
+                    return;
+                }
+
+                var userId = (int)userIdObj;
+                var presentationId = (int)presentationIdObj;
+                var nickname = (string)nicknameObj;
+
+                var presentation = await _presentationService.GetByIdAsync(presentationId);
+                if (presentation == null)
+                {
+                    await Clients.Caller.SendAsync(InfrastructureConstants.SignalRConstants.Events.Error, new ErrorEvent
+                    {
+                        Message = InfrastructureConstants.SignalRConstants.ErrorMessages.PresentationNotFound
+                    });
+                    return;
+                }
+
+                if (presentation.CreatorId != userId)
+                {
+                    await Clients.Caller.SendAsync(InfrastructureConstants.SignalRConstants.Events.Error, new ErrorEvent
+                    {
+                        Message = InfrastructureConstants.SignalRConstants.ErrorMessages.InsufficientPermissions
+                    });
+                    return;
+                }
+
+                _activePresentations.TryRemove(presentationId, out _);
+
+                var groupName = InfrastructureConstants.SignalRConstants.Groups.GetPresentationGroup(presentationId);
+                await Clients.Group(groupName).SendAsync(InfrastructureConstants.SignalRConstants.Events.PresentationStopped, new PresentationStoppedEvent
+                {
+                    PresentationId = presentationId,
+                    StoppedByUserId = userId,
+                    StoppedByNickname = nickname
+                });
+            }
+            catch (Exception ex)
+            {
+                await Clients.Caller.SendAsync(InfrastructureConstants.SignalRConstants.Events.Error, new ErrorEvent
+                {
+                    Message = ex.Message
+                });
+            }
+        }
+
+        public async Task NextSlide()
+        {
+            try
+            {
+                if (!Context.Items.TryGetValue(InfrastructureConstants.SignalRConstants.ContextKeys.UserId, out var userIdObj) ||
+                    !Context.Items.TryGetValue(InfrastructureConstants.SignalRConstants.ContextKeys.PresentationId, out var presentationIdObj))
+                {
+                    await Clients.Caller.SendAsync(InfrastructureConstants.SignalRConstants.Events.Error, new ErrorEvent
+                    {
+                        Message = InfrastructureConstants.SignalRConstants.ErrorMessages.UserNotAuthenticated
+                    });
+                    return;
+                }
+
+                var userId = (int)userIdObj;
+                var presentationId = (int)presentationIdObj;
+
+                if (!_activePresentations.TryGetValue(presentationId, out var presentationState) ||
+                    presentationState.Mode != PresentationMode.Present ||
+                    presentationState.PresenterId != userId)
+                {
+                    await Clients.Caller.SendAsync(InfrastructureConstants.SignalRConstants.Events.Error, new ErrorEvent
+                    {
+                        Message = InfrastructureConstants.SignalRConstants.ErrorMessages.InsufficientPermissions
+                    });
+                    return;
+                }
+
+                var slides = await _slideService.GetByPresentationIdAsync(presentationId);
+
+                if (presentationState.CurrentSlideIndex < slides.Count - 1)
+                {
+                    presentationState.CurrentSlideIndex++;
+
+                    var groupName = InfrastructureConstants.SignalRConstants.Groups.GetPresentationGroup(presentationId);
+                    await Clients.Group(groupName).SendAsync(InfrastructureConstants.SignalRConstants.Events.SlideChanged, new SlideChangedEvent
+                    {
+                        PresentationId = presentationId,
+                        CurrentSlideIndex = presentationState.CurrentSlideIndex,
+                        TotalSlides = slides.Count,
+                        ChangedByUserId = userId
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                await Clients.Caller.SendAsync(InfrastructureConstants.SignalRConstants.Events.Error, new ErrorEvent
+                {
+                    Message = ex.Message
+                });
+            }
+        }
+
+        public async Task PrevSlide()
+        {
+            try
+            {
+                if (!Context.Items.TryGetValue(InfrastructureConstants.SignalRConstants.ContextKeys.UserId, out var userIdObj) ||
+                    !Context.Items.TryGetValue(InfrastructureConstants.SignalRConstants.ContextKeys.PresentationId, out var presentationIdObj))
+                {
+                    await Clients.Caller.SendAsync(InfrastructureConstants.SignalRConstants.Events.Error, new ErrorEvent
+                    {
+                        Message = InfrastructureConstants.SignalRConstants.ErrorMessages.UserNotAuthenticated
+                    });
+                    return;
+                }
+
+                var userId = (int)userIdObj;
+                var presentationId = (int)presentationIdObj;
+
+                if (!_activePresentations.TryGetValue(presentationId, out var presentationState) ||
+                    presentationState.Mode != PresentationMode.Present ||
+                    presentationState.PresenterId != userId)
+                {
+                    await Clients.Caller.SendAsync(InfrastructureConstants.SignalRConstants.Events.Error, new ErrorEvent
+                    {
+                        Message = InfrastructureConstants.SignalRConstants.ErrorMessages.InsufficientPermissions
+                    });
+                    return;
+                }
+
+                if (presentationState.CurrentSlideIndex > 0)
+                {
+                    presentationState.CurrentSlideIndex--;
+
+                    var slides = await _slideService.GetByPresentationIdAsync(presentationId);
+                    var groupName = InfrastructureConstants.SignalRConstants.Groups.GetPresentationGroup(presentationId);
+                    await Clients.Group(groupName).SendAsync(InfrastructureConstants.SignalRConstants.Events.SlideChanged, new SlideChangedEvent
+                    {
+                        PresentationId = presentationId,
+                        CurrentSlideIndex = presentationState.CurrentSlideIndex,
+                        TotalSlides = slides.Count,
+                        ChangedByUserId = userId
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                await Clients.Caller.SendAsync(InfrastructureConstants.SignalRConstants.Events.Error, new ErrorEvent
+                {
+                    Message = ex.Message
+                });
+            }
+        }
+
+        public async Task GoToSlide(int slideIndex)
+        {
+            try
+            {
+                if (!Context.Items.TryGetValue(InfrastructureConstants.SignalRConstants.ContextKeys.UserId, out var userIdObj) ||
+                    !Context.Items.TryGetValue(InfrastructureConstants.SignalRConstants.ContextKeys.PresentationId, out var presentationIdObj))
+                {
+                    await Clients.Caller.SendAsync(InfrastructureConstants.SignalRConstants.Events.Error, new ErrorEvent
+                    {
+                        Message = InfrastructureConstants.SignalRConstants.ErrorMessages.UserNotAuthenticated
+                    });
+                    return;
+                }
+
+                var userId = (int)userIdObj;
+                var presentationId = (int)presentationIdObj;
+
+                if (!_activePresentations.TryGetValue(presentationId, out var presentationState) ||
+                    presentationState.Mode != PresentationMode.Present ||
+                    presentationState.PresenterId != userId)
+                {
+                    await Clients.Caller.SendAsync(InfrastructureConstants.SignalRConstants.Events.Error, new ErrorEvent
+                    {
+                        Message = InfrastructureConstants.SignalRConstants.ErrorMessages.InsufficientPermissions
+                    });
+                    return;
+                }
+
+                var slides = await _slideService.GetByPresentationIdAsync(presentationId);
+
+                if (slideIndex >= 0 && slideIndex < slides.Count)
+                {
+                    presentationState.CurrentSlideIndex = slideIndex;
+
+                    var groupName = InfrastructureConstants.SignalRConstants.Groups.GetPresentationGroup(presentationId);
+                    await Clients.Group(groupName).SendAsync(InfrastructureConstants.SignalRConstants.Events.SlideChanged, new SlideChangedEvent
+                    {
+                        PresentationId = presentationId,
+                        CurrentSlideIndex = presentationState.CurrentSlideIndex,
+                        TotalSlides = slides.Count,
+                        ChangedByUserId = userId
+                    });
+                }
+            }
+            catch (Exception ex)
             {
                 await Clients.Caller.SendAsync(InfrastructureConstants.SignalRConstants.Events.Error, new ErrorEvent
                 {

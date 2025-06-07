@@ -18,6 +18,10 @@
                 public const string UserLeftPresentation = nameof(UserLeftPresentation);
                 public const string UserUpdateRights = nameof(UserUpdateRights);
 
+                public const string PresentationStarted = nameof(PresentationStarted);
+                public const string PresentationStopped = nameof(PresentationStopped);
+                public const string SlideChanged = nameof(SlideChanged);
+
                 public const string SlideAdded = nameof(SlideAdded);
                 public const string SlideDeleted = nameof(SlideDeleted);
                 public const string SlidesReordered = nameof(SlidesReordered);

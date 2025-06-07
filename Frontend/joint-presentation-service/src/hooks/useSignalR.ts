@@ -18,7 +18,10 @@ import {
   EditorGrantedEvent,
   EditorRemovedEvent,
   UserUpdateRightsEvent,
-  ErrorEvent
+  ErrorEvent,
+  PresentationStartedEvent,
+  PresentationStoppedEvent,
+  SlideChangedEvent
 } from '../types/signalr';
 import signalRService from '../services/signalr';
 
@@ -46,6 +49,11 @@ interface UseSignalRReturn {
   deleteSlideElement: (elementId: number) => Promise<void>;
   grantEditorRights: (presentationId: number, userId: number) => Promise<void>;
   removeEditorRights: (presentationId: number, userId: number) => Promise<void>;
+  startPresentation: () => Promise<void>;
+  stopPresentation: () => Promise<void>;
+  nextSlide: () => Promise<void>;
+  prevSlide: () => Promise<void>;
+  goToSlide: (slideIndex: number) => Promise<void>;
   onUserConnected: (handler: (data: UserConnectedEvent) => void) => void;
   onUserDisconnected: (handler: (data: UserDisconnectedEvent) => void) => void;
   onPresentationCreated: (handler: (data: PresentationCreatedEvent) => void) => void;
@@ -64,6 +72,9 @@ interface UseSignalRReturn {
   onError: (handler: (data: ErrorEvent) => void) => void;
   onForceLogout: (handler: (data: ForceLogoutEvent) => void) => void;
   onConnectedUsersUpdated: (handler: (data: ConnectedUsersListUpdatedEvent) => void) => void;
+  onPresentationStarted: (handler: (data: PresentationStartedEvent) => void) => void;
+  onPresentationStopped: (handler: (data: PresentationStoppedEvent) => void) => void;
+  onSlideChanged: (handler: (data: SlideChangedEvent) => void) => void;
 }
 
 export const useSignalR = (options: UseSignalROptions = {}): UseSignalRReturn => {
@@ -233,6 +244,51 @@ export const useSignalR = (options: UseSignalROptions = {}): UseSignalRReturn =>
     };
   };
 
+  const startPresentation = useCallback(async () => {
+    try {
+      await signalRService.startPresentation();
+    } catch (error) {
+      console.error('Failed to start presentation:', error);
+      throw error;
+    }
+  }, []);
+
+  const stopPresentation = useCallback(async () => {
+    try {
+      await signalRService.stopPresentation();
+    } catch (error) {
+      console.error('Failed to stop presentation:', error);
+      throw error;
+    }
+  }, []);
+
+  const nextSlide = useCallback(async () => {
+    try {
+      await signalRService.nextSlide();
+    } catch (error) {
+      console.error('Failed to go to next slide:', error);
+      throw error;
+    }
+  }, []);
+
+  const prevSlide = useCallback(async () => {
+    try {
+      await signalRService.prevSlide();
+    } catch (error) {
+      console.error('Failed to go to previous slide:', error);
+      throw error;
+    }
+  }, []);
+
+  const goToSlide = useCallback(async (slideIndex: number) => {
+    try {
+      await signalRService.goToSlide(slideIndex);
+    } catch (error) {
+      console.error('Failed to go to slide:', error);
+      throw error;
+    }
+  }, []);
+
   const onUserConnected = createEventHandler(SIGNALR_EVENTS.USER_CONNECTED);
   const onUserDisconnected = createEventHandler(SIGNALR_EVENTS.USER_DISCONNECTED);
   const onPresentationCreated = createEventHandler(SIGNALR_EVENTS.PRESENTATION_CREATED);
@@ -251,6 +307,10 @@ export const useSignalR = (options: UseSignalROptions = {}): UseSignalRReturn =>
   const onError = createEventHandler(SIGNALR_EVENTS.ERROR);
   const onForceLogout = createEventHandler('forceLogout');
   const onConnectedUsersUpdated = createEventHandler(SIGNALR_EVENTS.CONNECTED_USERS_UPDATED);
+  const onPresentationStarted = createEventHandler(SIGNALR_EVENTS.PRESENTATION_STARTED);
+  const onPresentationStopped = createEventHandler(SIGNALR_EVENTS.PRESENTATION_STOPPED);
+  const onSlideChanged = createEventHandler(SIGNALR_EVENTS.SLIDE_CHANGED);
+
 
   return {
     connectionState,
@@ -268,6 +328,11 @@ export const useSignalR = (options: UseSignalROptions = {}): UseSignalRReturn =>
     deleteSlideElement,
     grantEditorRights,
     removeEditorRights,
+    startPresentation,
+    stopPresentation,
+    nextSlide,
+    prevSlide,
+    goToSlide,
     onUserConnected,
     onUserDisconnected,
     onPresentationCreated,
@@ -285,6 +350,9 @@ export const useSignalR = (options: UseSignalROptions = {}): UseSignalRReturn =>
     onUserUpdateRights,
     onError,
     onForceLogout,
-    onConnectedUsersUpdated
+    onConnectedUsersUpdated,
+    onPresentationStarted,
+    onPresentationStopped,
+    onSlideChanged
   };
 };

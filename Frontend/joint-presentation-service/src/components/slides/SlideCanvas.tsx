@@ -1,7 +1,12 @@
-import React, { useEffect, useRef, useCallback, useState } from 'react';
+import React, { useEffect, useRef, useCallback, useState, useMemo } from 'react';
 import * as fabric from 'fabric';
 import { Slide, SlideElement } from '../../types/api';
 import { useDragToCreate } from '../../hooks/useDragToCreate';
+
+interface ISize {
+  width: number;
+  height: number;
+}
 
 interface SelectedState {
   selectedObjects: any[];
@@ -42,6 +47,8 @@ interface SlideCanvasProps {
   selectedTool: string;
   selectedColor: string;
   skipElementsLoading?: boolean;
+  canvasSize?: ISize | null;
+  enableZoomAndPan?: boolean;
   onObjectCreate: (properties: any) => void;
   onObjectModified: (elementId: number, properties: any) => void;
   onSelectionChanged: (selectedState: SelectedState) => void;
@@ -66,6 +73,8 @@ const SlideCanvas: React.FC<SlideCanvasProps> = ({
   selectedTool,
   selectedColor,
   skipElementsLoading = false,
+  canvasSize = null,
+  enableZoomAndPan = true,
   onObjectCreate,
   onObjectModified,
   onSelectionChanged,
@@ -77,6 +86,14 @@ const SlideCanvas: React.FC<SlideCanvasProps> = ({
   const [pendingCreatedObjects, setPendingCreatedObjects] = useState<PendingCreatedObject[]>([]);
   const [pendingDeletedObjects, setPendingDeletedObjects] = useState<number[]>([]);
   const tempIdCounterRef = useRef(1);
+
+  const lastPanPointRef = useRef({ x: 0, y: 0 });
+  const isCtrlPressedRef = useRef(false);
+  const isPanningRef = useRef(false);
+
+  const actualSize = useMemo(() => {
+      return canvasSize || { width: 800, height: 600 };
+    }, [canvasSize]);
 
   const updateSelectionState = useCallback((selected: fabric.Object[]) => {
     const selectedObjects = selected as any[];
@@ -384,24 +401,6 @@ const SlideCanvas: React.FC<SlideCanvasProps> = ({
       }
     }
   }, []);
-  
-  // const updateElementOnCanvas = useCallback((element: SlideElement) => {
-  //   if (!fabricCanvasRef.current) return;
-
-  //   const objects = fabricCanvasRef.current.getObjects();
-  //   const fabricObject = objects.find((obj: any) => obj.elementId === element.id);
-    
-  //   if (fabricObject) {
-  //     try {
-  //       const properties = JSON.parse(element.properties);
-  //       const { type, ...updateProperties } = properties;
-  //       fabricObject.set(updateProperties);
-  //       fabricCanvasRef.current.renderAll();
-  //     } catch (error) {
-  //       console.error('Error updating element:', error);
-  //     }
-  //   }
-  // }, []);
 
   const removeElementFromCanvas = useCallback((elementId: number) => {
     if (!fabricCanvasRef.current) return;
@@ -537,6 +536,107 @@ const SlideCanvas: React.FC<SlideCanvasProps> = ({
     }
   }, [selectedTool]);
 
+  const handleMouseWheel = useCallback((opt: fabric.TEvent) => {
+    if (!fabricCanvasRef.current || !enableZoomAndPan) return;
+
+    const event = opt.e as WheelEvent;
+    const delta = event.deltaY;
+    let zoomLevel = fabricCanvasRef.current.getZoom();
+    
+    zoomLevel *= 0.999 ** delta;
+    
+    if (zoomLevel > 5) zoomLevel = 5;
+    if (zoomLevel < 0.1) zoomLevel = 0.1;
+
+    const canvas = fabricCanvasRef.current;
+    const pointer = canvas.getPointer(event);
+    
+    canvas.zoomToPoint(new fabric.Point(pointer.x, pointer.y), zoomLevel);
+    
+    event.preventDefault();
+    event.stopPropagation();
+  }, [enableZoomAndPan]);
+
+  const handleKeyDown = useCallback((event: KeyboardEvent) => {
+    if (!enableZoomAndPan) return;
+    
+    if (event.ctrlKey && !isCtrlPressedRef.current) {
+      isCtrlPressedRef.current = true;
+      
+      if (fabricCanvasRef.current) {
+        fabricCanvasRef.current.defaultCursor = 'grab';
+        fabricCanvasRef.current.hoverCursor = 'grab';
+      }
+    }
+  }, [enableZoomAndPan]);
+
+  const handleKeyUp = useCallback((event: KeyboardEvent) => {
+    if (!enableZoomAndPan) return;
+    
+    if (!event.ctrlKey && isCtrlPressedRef.current) {
+      isCtrlPressedRef.current = false;
+      isPanningRef.current = false;
+      
+      if (fabricCanvasRef.current) {
+        fabricCanvasRef.current.defaultCursor = 'default';
+        fabricCanvasRef.current.hoverCursor = 'move';
+      }
+    }
+  }, [enableZoomAndPan]);
+
+  useEffect(() => {
+    if (!enableZoomAndPan) return;
+
+    document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener('keyup', handleKeyUp);
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('keyup', handleKeyUp);
+    };
+  }, [enableZoomAndPan, handleKeyDown, handleKeyUp]);
+
+  const handleMouseDown = useCallback((opt: fabric.TEvent) => {
+    if (!enableZoomAndPan || !isCtrlPressedRef.current) return;
+
+    const event = opt.e as MouseEvent;
+    
+    if (event.button === 0) {
+      event.preventDefault();
+      opt.e.preventDefault();
+      
+      isPanningRef.current = true;
+      lastPanPointRef.current = { x: event.clientX, y: event.clientY };
+      
+      if (fabricCanvasRef.current) {
+        fabricCanvasRef.current.defaultCursor = 'grabbing';
+      }
+    }
+  }, [enableZoomAndPan]);
+
+  const handleMouseMove = useCallback((opt: fabric.TEvent) => {
+    if (!enableZoomAndPan || !isPanningRef.current || !fabricCanvasRef.current) return;
+
+    const event = opt.e as MouseEvent;
+    const canvas = fabricCanvasRef.current;
+    
+    const deltaX = event.clientX - lastPanPointRef.current.x;
+    const deltaY = event.clientY - lastPanPointRef.current.y;
+
+    canvas.relativePan(new fabric.Point(deltaX, deltaY));
+    
+    lastPanPointRef.current = { x: event.clientX, y: event.clientY };
+    event.preventDefault();
+  }, [enableZoomAndPan]);
+
+  const handleMouseUp = useCallback((opt: fabric.TEvent) => {
+    if (!enableZoomAndPan || !isPanningRef.current) return;
+
+    isPanningRef.current = false;
+    if (fabricCanvasRef.current) {
+      fabricCanvasRef.current.defaultCursor = 'grab';
+    }
+  }, [enableZoomAndPan]);
 
   useDragToCreate({
     canvas: fabricCanvasRef.current,
@@ -550,8 +650,8 @@ const SlideCanvas: React.FC<SlideCanvasProps> = ({
     if (!canvasRef.current) return;
 
     const canvas = new fabric.Canvas(canvasRef.current, {
-      width: 800,
-      height: 600,
+      width: actualSize.width,
+      height: actualSize.height,
       backgroundColor: '#ffffff',
       selection: canEdit
     });
@@ -567,11 +667,19 @@ const SlideCanvas: React.FC<SlideCanvasProps> = ({
     canvas.on('text:editing:entered', handleTextEditing);
     canvas.on('text:editing:exited', handleTextEditing);
 
+    if (enableZoomAndPan) {
+      canvas.on('mouse:wheel', handleMouseWheel);
+      canvas.on('mouse:down', handleMouseDown);
+      canvas.on('mouse:move', handleMouseMove);
+      canvas.on('mouse:up', handleMouseUp);
+    }
+
     return () => {
       canvas.dispose();
     };
-  }, [handleObjectModified, handleSelectionCreated, handleSelectionUpdated, handleSelectionCleared, canEdit, updateToolbarFromSelection, handleTextSelectionChanged, handleTextEditing]);
+  }, [handleObjectModified, handleSelectionCreated, handleSelectionUpdated, handleSelectionCleared, canEdit, handleTextSelectionChanged, handleTextEditing, enableZoomAndPan, handleMouseWheel, handleMouseDown, handleMouseMove, handleMouseUp]);
 
+  
   useEffect(() => {
     updateCursor();
   }, [updateCursor]);
