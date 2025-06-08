@@ -73,6 +73,11 @@ namespace JointPresentationService.Application.Services
 
             await _slideRepository.CreateAsync(firstSlide);
 
+            createdPresentation.Slides = new List<Slide>()
+            {
+                firstSlide
+            };
+
             return createdPresentation;
         }
 

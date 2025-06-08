@@ -26,7 +26,7 @@ interface SlideToolbarProps {
   onTextUnderline?: () => void;
   onTextStrikethrough?: () => void;
   onTextFontSize?: (size: number) => void;
-  onApplyColorToSelected?: () => void;
+  onApplyColorToSelected?: (color: string) => void;
 }
 
 interface TextSelectionState {
@@ -122,7 +122,7 @@ const SlideToolbar: React.FC<SlideToolbarProps> = ({
   const handleColorSelect = (color: string) => {
     onColorChange(color);
     if (selectedState.selectedObjectType !== 'none' && onApplyColorToSelected) {
-      onApplyColorToSelected();
+      onApplyColorToSelected(color);
     }
     setIsColorsDropdownOpen(false);
   };

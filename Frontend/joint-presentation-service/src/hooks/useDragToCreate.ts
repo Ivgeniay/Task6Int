@@ -259,16 +259,30 @@ export const useDragToCreate = ({
         };
         break;
       case 'line':
-        properties = {
-          ...properties,
-          x1: 0,
-          y1: 0,
-          x2: endX - startX,
-          y2: endY - startY,
-          left: startX,
-          top: startY,
-          fill: undefined
-        };
+        const previewLine = previewObjectRef.current;
+        if (previewLine && previewLine.type === 'line') {
+          properties = {
+            ...properties,
+            x1: (previewLine as fabric.Line).x1,
+            y1: (previewLine as fabric.Line).y1, 
+            x2: (previewLine as fabric.Line).x2,
+            y2: (previewLine as fabric.Line).y2,
+            left: previewLine.left,
+            top: previewLine.top,
+            fill: undefined
+          };
+        } else {
+          properties = {
+            ...properties,
+            x1: 0,
+            y1: 0,
+            x2: endX - startX,
+            y2: endY - startY,
+            left: startX,
+            top: startY,
+            fill: undefined
+          };
+        }
         break;
     }
 

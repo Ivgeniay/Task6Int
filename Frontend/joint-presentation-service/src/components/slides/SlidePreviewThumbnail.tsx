@@ -33,7 +33,8 @@ const SlidePreviewThumbnail: React.FC<SlidePreviewThumbnailProps> = ({
   }
 
   return (
-    <div className={`bg-white rounded overflow-hidden ${className}`} style={{ width, height }}>
+    // <div className={`bg-white rounded overflow-hidden ${className}`} style={{ width, height }}>
+    <div style={{ width, height, overflow: 'hidden' }} className="bg-white rounded">
       <SlideCanvas
         slide={slide}
         canEdit={false}

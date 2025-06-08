@@ -94,7 +94,7 @@ const PresentationEditorPage: React.FC<PresentationEditorPageProps> = ({ current
     saveCanvasState: () => any;
     restoreCanvasState: (state: any) => void;
     applyTextStyle: (property: string, value: any) => void;
-    applyColorToSelected: () => void;
+    applyColorToSelected: (color?:string) => void;
     handlerOwnElementCreate: (element: SlideElement) => void;
     clearSelection: () => void;
   } | null>(null);
@@ -360,12 +360,12 @@ const PresentationEditorPage: React.FC<PresentationEditorPageProps> = ({ current
   useEffect(() => {
     onElementDeleted((data) => {
       if (currentSlideWithElements?.elements?.some(el => el.id === data.elementId) && canvasMethodsRef) {
-        if (data.initiatorUserId !== currentUserId) {
+        //if (data.initiatorUserId !== currentUserId) {
           canvasMethodsRef.removeElement(data.elementId);
           if (currentSlideWithElements) {
             invalidateSlideCache(currentSlideWithElements.id);
           }
-        }
+        //}
       }
     });
   }, [onElementDeleted, currentSlideWithElements, canvasMethodsRef, invalidateSlideCache, currentUserId]);
@@ -441,6 +441,7 @@ const PresentationEditorPage: React.FC<PresentationEditorPageProps> = ({ current
     if (!canEdit || !currentSlideWithElements) return;
 
     try {
+      setSelectedTool('select');
       await addSlideElement(currentSlideWithElements.id, JSON.stringify(properties));
     } catch (error) {
       console.error('Failed to create element:', error);
@@ -475,8 +476,8 @@ const PresentationEditorPage: React.FC<PresentationEditorPageProps> = ({ current
         }
       }
     } catch (error) {
-    console.error('Failed to delete elements:', error);
-  }
+      console.error('Failed to delete elements:', error);
+    }
   };
 
   const handleClearSlide = async () => {
@@ -524,9 +525,9 @@ const PresentationEditorPage: React.FC<PresentationEditorPageProps> = ({ current
     }
   };
 
-  const handleApplyColorToSelected = () => {
+  const handleApplyColorToSelected = (color?: string) => {
     if (canvasMethodsRef) {
-      canvasMethodsRef.applyColorToSelected();
+      canvasMethodsRef.applyColorToSelected(color || selectedColor);
     }
   };
 
@@ -725,13 +726,15 @@ const PresentationEditorPage: React.FC<PresentationEditorPageProps> = ({ current
           />
         </div>
 
-        <div className="w-80 bg-gray-50 border-l">
-          <UserList
-            presentationId={presentation.id}
-            currentUserId={currentUserId}
-            canManageRoles={presentation.creatorId === currentUserId}
-          />
-        </div>
+        {isCreator && (
+          <div className="w-80 bg-gray-50 border-l">
+            <UserList
+              presentationId={presentation.id}
+              currentUserId={currentUserId}
+              canManageRoles={presentation.creatorId === currentUserId}
+            />
+          </div>
+        )}
       </div>
     </div>
   );

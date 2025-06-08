@@ -362,6 +362,21 @@ namespace JointPresentationService.Infrastructure.SirnalR.Hubs
                 await Clients.Caller.SendAsync(InfrastructureConstants.SignalRConstants.Events.ConnectedUsersListUpdated, new { joinedUsers = connectedUsers });
 
                 await Clients.Group(groupName).SendAsync(InfrastructureConstants.SignalRConstants.Events.UserJoinedPresentation, userJoinedEvent);
+
+                if (_activePresentations.TryGetValue(presentationId, out var presentationState) && presentationState.Mode == PresentationMode.Present)
+                {
+                    var slides = await _slideService.GetByPresentationIdAsync(presentationId);
+                    var presenter = await _userService.GetByIdAsync(presentationState.PresenterId);
+
+                    await Clients.Caller.SendAsync(InfrastructureConstants.SignalRConstants.Events.PresentationStarted, new PresentationStartedEvent
+                    {
+                        PresentationId = presentationId,
+                        PresenterId = presentationState.PresenterId,
+                        PresenterNickname = presenter.Nickname,
+                        CurrentSlideIndex = presentationState.CurrentSlideIndex,
+                        TotalSlides = slides.Count
+                    });
+                }
             }
             catch (Exception ex)
             {

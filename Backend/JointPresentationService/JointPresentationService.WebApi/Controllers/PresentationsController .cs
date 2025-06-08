@@ -89,6 +89,28 @@ namespace JointPresentationService.WebApi.Controllers
                 return BadRequest(ex.Message);
             }
         }
+
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeletePresentation(int id)
+        {
+            try
+            {
+                var presentation = await _presentationService.GetByIdAsync(id);
+                if (presentation is not null)
+                {
+                    await _presentationService.DeletePresentationAsync(presentation.Id);
+                }
+                return Ok();
+            }
+            catch (ArgumentException ex)
+            {
+                return NotFound(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
     }
 
 }

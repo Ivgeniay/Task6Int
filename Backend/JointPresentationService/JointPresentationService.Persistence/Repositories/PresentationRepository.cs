@@ -29,7 +29,9 @@ namespace JointPresentationService.Persistence.Repositories
         {
             _context.Presentations.Add(presentation);
             await _context.SaveChangesAsync();
-            return presentation;
+            return await _context.Presentations
+                .Include(p => p.Creator)
+                .FirstAsync(p => p.Id == presentation.Id);
         }
 
         public async Task UpdateTimestampAsync(int presentationId)

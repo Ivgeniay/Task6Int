@@ -265,8 +265,8 @@ const PresentationTable: React.FC<PresentationTableProps> = ({
                           <div className="flex-shrink-0">
                             <SlidePreviewThumbnail
                               slide={slide}
-                              width={200}
-                              height={150}
+                              width={190}
+                              height={120}
                               showPlaceholder={true}
                               placeholderText={isLoading ? "Loading..." : `${presentation.slides?.length || 0} slides`}
                             />

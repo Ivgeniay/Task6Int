@@ -60,7 +60,7 @@ interface SlideCanvasProps {
     saveCanvasState: () => any;
     restoreCanvasState: (state: any) => void;
     applyTextStyle: (property: string, value: any) => void;
-    applyColorToSelected: () => void;
+    applyColorToSelected: (color?: string) => void;
     handlerOwnElementCreate: (element: SlideElement) => void;
     clearSelection: () => void;
   }) => void;
@@ -503,13 +503,15 @@ const SlideCanvas: React.FC<SlideCanvasProps> = ({
     }
   }, [canEdit, onObjectModified, onTextSelectionChanged, analyzeTextSelection]);
 
-  const applyColorToSelected = useCallback(() => {
+  const applyColorToSelected = useCallback((color?: string) => {
     if (!fabricCanvasRef.current || !canEdit) return;
 
     const activeObject = fabricCanvasRef.current.getActiveObject();
     if (!activeObject) return;
 
-    activeObject.set('fill', selectedColor);
+    const colorToApply = color || selectedColor;
+    activeObject.set('fill', colorToApply);
+    activeObject.set('stroke', colorToApply);
     fabricCanvasRef.current.renderAll();
 
     const elementId = (activeObject as any).elementId;
@@ -547,12 +549,32 @@ const SlideCanvas: React.FC<SlideCanvasProps> = ({
     zoomLevel *= 0.999 ** delta;
     
     if (zoomLevel > 5) zoomLevel = 5;
-    if (zoomLevel < 0.1) zoomLevel = 0.1;
+    if (zoomLevel < 1) zoomLevel = 1;
 
     const canvas = fabricCanvasRef.current;
     const pointer = canvas.getPointer(event);
     
     canvas.zoomToPoint(new fabric.Point(pointer.x, pointer.y), zoomLevel);
+
+    if (zoomLevel === 1) {
+      canvas.setViewportTransform([1, 0, 0, 1, 0, 0]);
+    } else {
+      const vpt = canvas.viewportTransform;
+      const canvasWidth = canvas.getWidth();
+      const canvasHeight = canvas.getHeight();
+      const contentWidth = canvasWidth * zoomLevel;
+      const contentHeight = canvasHeight * zoomLevel;
+      
+      const minX = canvasWidth - contentWidth;
+      const minY = canvasHeight - contentHeight;
+      const maxX = 0;
+      const maxY = 0;
+      
+      const constrainedX = Math.min(Math.max(vpt[4], minX), maxX);
+      const constrainedY = Math.min(Math.max(vpt[5], minY), maxY);
+      
+      canvas.setViewportTransform([zoomLevel, 0, 0, zoomLevel, constrainedX, constrainedY]);
+    }
     
     event.preventDefault();
     event.stopPropagation();
@@ -567,6 +589,11 @@ const SlideCanvas: React.FC<SlideCanvasProps> = ({
       if (fabricCanvasRef.current) {
         fabricCanvasRef.current.defaultCursor = 'grab';
         fabricCanvasRef.current.hoverCursor = 'grab';
+        
+        fabricCanvasRef.current.selection = false;
+        fabricCanvasRef.current.getObjects().forEach((obj: any) => {
+          obj.evented = false;
+        });
       }
     }
   }, [enableZoomAndPan]);
@@ -581,9 +608,14 @@ const SlideCanvas: React.FC<SlideCanvasProps> = ({
       if (fabricCanvasRef.current) {
         fabricCanvasRef.current.defaultCursor = 'default';
         fabricCanvasRef.current.hoverCursor = 'move';
+        
+        fabricCanvasRef.current.selection = canEdit;
+        fabricCanvasRef.current.getObjects().forEach((obj: any) => {
+          obj.evented = canEdit;
+        });
       }
     }
-  }, [enableZoomAndPan]);
+  }, [enableZoomAndPan, canEdit]);
 
   useEffect(() => {
     if (!enableZoomAndPan) return;
@@ -624,16 +656,40 @@ const SlideCanvas: React.FC<SlideCanvasProps> = ({
     const deltaX = event.clientX - lastPanPointRef.current.x;
     const deltaY = event.clientY - lastPanPointRef.current.y;
 
-    canvas.relativePan(new fabric.Point(deltaX, deltaY));
-    
+    const vpt = canvas.viewportTransform;
+    const zoom = canvas.getZoom();
+
+    const newX = vpt[4] + deltaX;
+    const newY = vpt[5] + deltaY;
+
+    const canvasWidth = canvas.getWidth();
+    const canvasHeight = canvas.getHeight();
+    const contentWidth = canvasWidth * zoom;
+    const contentHeight = canvasHeight * zoom;
+
+    const minX = canvasWidth - contentWidth;
+    const minY = canvasHeight - contentHeight;
+    const maxX = 0;
+    const maxY = 0;
+
+    const constrainedX = Math.min(Math.max(newX, minX), maxX);
+    const constrainedY = Math.min(Math.max(newY, minY), maxY);
+
+    canvas.setViewportTransform([zoom, 0, 0, zoom, constrainedX, constrainedY]);
     lastPanPointRef.current = { x: event.clientX, y: event.clientY };
     event.preventDefault();
+
+    // canvas.relativePan(new fabric.Point(deltaX, deltaY));
+    
+    // lastPanPointRef.current = { x: event.clientX, y: event.clientY };
+    // event.preventDefault();
   }, [enableZoomAndPan]);
 
   const handleMouseUp = useCallback((opt: fabric.TEvent) => {
     if (!enableZoomAndPan || !isPanningRef.current) return;
 
     isPanningRef.current = false;
+    
     if (fabricCanvasRef.current) {
       fabricCanvasRef.current.defaultCursor = 'grab';
     }
@@ -692,7 +748,7 @@ const SlideCanvas: React.FC<SlideCanvasProps> = ({
       fabricCanvasRef.current.setViewportTransform([scale, 0, 0, scale, 0, 0]);
     }
   }, [canvasSize, fabricCanvasRef.current]);
-  
+
   useEffect(() => {
     updateCursor();
   }, [updateCursor]);
