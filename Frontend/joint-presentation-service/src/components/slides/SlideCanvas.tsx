@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useCallback, useMemo } from 'react';
+import React, { useEffect, useRef, useCallback, useMemo, useState } from 'react';
 import * as fabric from 'fabric';
 import { Slide, SlideElement } from '../../types/api';
 import { useDragToCreate } from '../../hooks/useDragToCreate';
@@ -92,6 +92,7 @@ const SlideCanvas: React.FC<SlideCanvasProps> = ({
   const lastPanPointRef = useRef({ x: 0, y: 0 });
   const isCtrlPressedRef = useRef(false);
   const isPanningRef = useRef(false);
+
 
   const actualSize = useMemo(() => {
       return canvasSize || { width: 800, height: 600 };
@@ -723,9 +724,32 @@ const SlideCanvas: React.FC<SlideCanvasProps> = ({
     onObjectCreate,
     onObjectCreatedLocally: handleObjectCreatedLocally
   });
-const selectedObjectsRef = useRef<fabric.Object[]>([]);
+  
+  const selectedObjectsRef = useRef<fabric.Object[]>([]);
+
+
+  // const [testState, setTestState] = useState<number>(0);
+  // const handleTestKeyPress = useCallback((event: KeyboardEvent) => {
+  //   if (event.key === 'f' || event.key === 'F') {
+  //     setTestState(prev => prev + 1);
+  //     console.log('F pressed, testState updated to:', testState + 1);
+  //   }
+  // }, [testState]);
+  // useEffect(() => {
+  //   document.addEventListener('keydown', handleTestKeyPress);
+  //   return () => {
+  //     document.removeEventListener('keydown', handleTestKeyPress);
+  //   };
+  // }, [handleTestKeyPress]);
+  // useEffect(() => {
+  //   console.log('testState changed to:', testState);
+  // }, [testState]);
+
+
   useEffect(() => {
     if (!canvasRef.current) return;
+
+    //console.log('Creating new canvas due to testState:', testState);
 
     const canvas = new fabric.Canvas(canvasRef.current, {
       width: actualSize.width,
@@ -764,6 +788,9 @@ const selectedObjectsRef = useRef<fabric.Object[]>([]);
       canvas.on('mouse:up', handleMouseUp);
     }
 
+    if (slide && slide.elements && slide.elements.length > 0) { 
+      loadElementsToCanvas(slide.elements);
+    }
     return () => {
       canvas.dispose();
     };

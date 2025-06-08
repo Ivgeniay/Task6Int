@@ -351,12 +351,12 @@ class SignalRService {
     await this.connection.invoke('RemoveEditorRights', presentationId, userId);
   }
 
-  async startPresentation(): Promise<void> {
+  async startPresentation(slideIndex: number): Promise<void> {
     if (!this.connection || !this.connectionState.isConnected) {
       throw new Error('Not connected to SignalR hub');
     }
 
-    await this.connection.invoke('StartPresentation');
+    await this.connection.invoke('StartPresentation', slideIndex);
   }
 
   async stopPresentation(): Promise<void> {

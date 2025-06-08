@@ -222,9 +222,12 @@ export const useDragToCreate = ({
       return;
     }
 
-    if (width < 10 || height < 10) return;
-
     const shapeType = selectedTool.replace('shape-', '');
+    if (shapeType !== 'line' && (width < 10 || height < 10)) 
+    {
+      return;
+    }
+
     let properties: any = {
       type: shapeType,
       left,
@@ -341,9 +344,9 @@ export const useDragToCreate = ({
     const pointer = canvas.getPointer(e.e as MouseEvent);
     const { startPoint } = dragStateRef.current;
 
-    clearPreviewObject();
-
+    
     createFinalObject(startPoint.x, startPoint.y, pointer.x, pointer.y);
+    clearPreviewObject();
 
     setDragState({
       isCreating: false,

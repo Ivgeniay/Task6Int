@@ -49,7 +49,7 @@ interface UseSignalRReturn {
   deleteSlideElement: (elementId: number) => Promise<void>;
   grantEditorRights: (presentationId: number, userId: number) => Promise<void>;
   removeEditorRights: (presentationId: number, userId: number) => Promise<void>;
-  startPresentation: () => Promise<void>;
+  startPresentation: (slideIndex: number) => Promise<void>;
   stopPresentation: () => Promise<void>;
   nextSlide: () => Promise<void>;
   prevSlide: () => Promise<void>;
@@ -244,9 +244,9 @@ export const useSignalR = (options: UseSignalROptions = {}): UseSignalRReturn =>
     };
   };
 
-  const startPresentation = useCallback(async () => {
+  const startPresentation = useCallback(async (slideIndex: number) => {
     try {
-      await signalRService.startPresentation();
+      await signalRService.startPresentation(slideIndex);
     } catch (error) {
       console.error('Failed to start presentation:', error);
       throw error;

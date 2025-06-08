@@ -177,6 +177,11 @@ const PresentationEditorPage: React.FC<PresentationEditorPageProps> = ({ current
 
   useEffect(() => {
     onPresentationStarted((data) => {
+
+      if (data.presenterId !== currentUserId) {
+        setCurrentSlideIndex(data.currentSlideIndex);
+      }
+
       setPresentationState({
         mode: PresentationMode.Present,
         currentSlideIndex: data.currentSlideIndex,
@@ -184,8 +189,9 @@ const PresentationEditorPage: React.FC<PresentationEditorPageProps> = ({ current
         presenterNickname: data.presenterNickname,
         totalSlides: data.totalSlides
       });
+
     });
-  }, [onPresentationStarted]);
+  }, [onPresentationStarted, currentUserId]);
 
   useEffect(() => {
     onPresentationStopped((data) => {
@@ -201,7 +207,7 @@ const PresentationEditorPage: React.FC<PresentationEditorPageProps> = ({ current
     if (!isCreator) return;
     
     try {
-      await startPresentation();
+      await startPresentation(currentSlideIndex);
     } catch (error) {
       console.error('Failed to start presentation:', error);
     }

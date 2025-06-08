@@ -603,7 +603,7 @@ namespace JointPresentationService.Infrastructure.SirnalR.Hubs
             }
         }
 
-        public async Task StartPresentation()
+        public async Task StartPresentation(int slideIndex)
         {
             try
             {
@@ -653,7 +653,7 @@ namespace JointPresentationService.Infrastructure.SirnalR.Hubs
                     (key, oldValue) => new PresentationModeState
                     {
                         Mode = PresentationMode.Present,
-                        CurrentSlideIndex = 0,
+                        CurrentSlideIndex = slideIndex,
                         PresenterId = userId
                     });
 
@@ -663,7 +663,7 @@ namespace JointPresentationService.Infrastructure.SirnalR.Hubs
                     PresentationId = presentationId,
                     PresenterId = userId,
                     PresenterNickname = nickname,
-                    CurrentSlideIndex = 0,
+                    CurrentSlideIndex = slideIndex,
                     TotalSlides = slides.Count
                 };
                 await Clients.Group(groupName).SendAsync(InfrastructureConstants.SignalRConstants.Events.PresentationStarted, _event);
