@@ -63,6 +63,7 @@ interface SlideCanvasProps {
     applyColorToSelected: (color?: string) => void;
     handlerOwnElementCreate: (element: SlideElement) => void;
     clearSelection: () => void;
+    getCurrentElementState?: (elementId: number) => SlideElement | null;
   }) => void;
 }
 
@@ -79,7 +80,7 @@ const SlideCanvas: React.FC<SlideCanvasProps> = ({
   onObjectModified,
   onSelectionChanged,
   onTextSelectionChanged,
-  onCanvasMethodsReady
+  onCanvasMethodsReady 
 }) => {
 
   const pendingCreatedObjectsRef = useRef<PendingCreatedObject[]>([]);
@@ -131,7 +132,27 @@ const SlideCanvas: React.FC<SlideCanvasProps> = ({
 
     const object = e.target as any;
     const elementId = object.elementId;
-    
+
+    if (!elementId) {
+      for (const savedObject of selectedObjectsRef.current) {
+        const savedElementId = (savedObject as any).elementId;
+        if (savedElementId) {
+          if (fabricCanvasRef.current) {
+            const actualObject = fabricCanvasRef.current.getObjects().find(obj => (obj as any).elementId === savedElementId);
+            if (actualObject) {
+              const boundingRect = actualObject.getBoundingRect();
+              const properties = (actualObject as any).toJSON(['elementId']);
+              properties.left = boundingRect.left;
+              properties.top = boundingRect.top;
+
+              onObjectModified(savedElementId, properties);
+            }
+          }
+        }
+      }
+      return;
+    }
+
     if (!elementId) return;
 
     try {
@@ -702,7 +723,7 @@ const SlideCanvas: React.FC<SlideCanvasProps> = ({
     onObjectCreate,
     onObjectCreatedLocally: handleObjectCreatedLocally
   });
-
+const selectedObjectsRef = useRef<fabric.Object[]>([]);
   useEffect(() => {
     if (!canvasRef.current) return;
 
@@ -723,6 +744,18 @@ const SlideCanvas: React.FC<SlideCanvasProps> = ({
     canvas.on('text:selection:changed', handleTextSelectionChanged);
     canvas.on('text:editing:entered', handleTextEditing);
     canvas.on('text:editing:exited', handleTextEditing);
+
+    canvas.on('selection:created', (e) => {
+      selectedObjectsRef.current = e.selected || [];
+    });
+
+    canvas.on('selection:updated', (e) => {
+      selectedObjectsRef.current = e.selected || [];
+    });
+
+    canvas.on('selection:cleared', () => {
+      selectedObjectsRef.current = [];
+    });
 
     if (enableZoomAndPan) {
       canvas.on('mouse:wheel', handleMouseWheel);
@@ -775,6 +808,39 @@ const SlideCanvas: React.FC<SlideCanvasProps> = ({
     }
   }, [slide, loadElementsToCanvas, clearCanvas, skipElementsLoading]);
 
+  const getCurrentElementState = useCallback((elementId: number): SlideElement | null => {
+    if (!fabricCanvasRef.current || !slide) return null;
+    
+    const fabricObject = fabricCanvasRef.current.getObjects().find((obj: any) => obj.elementId === elementId);
+    if (!fabricObject) return null;
+    
+    try {
+      const properties = (fabricObject as any).toJSON(['elementId']);
+      
+      // Получаем центральную точку (абсолютные координаты)
+      const centerPoint = fabricObject.getCenterPoint();
+      
+      // Пересчитываем left/top из центра
+      const width = fabricObject.width * fabricObject.scaleX;
+      const height = fabricObject.height * fabricObject.scaleY;
+      
+      properties.left = centerPoint.x - (width / 2);
+      properties.top = centerPoint.y - (height / 2);
+      
+      return {
+        id: elementId,
+        slideId: slide.id,
+        properties: JSON.stringify(properties),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(), 
+        createdById: currentUserId || 0
+      } as SlideElement;
+    } catch (error) {
+      console.error('Failed to get current element state:', error);
+      return null;
+    }
+  }, [slide, currentUserId]);
+
   useEffect(() => {
     if (onCanvasMethodsReady) {
       onCanvasMethodsReady({
@@ -786,10 +852,11 @@ const SlideCanvas: React.FC<SlideCanvasProps> = ({
         applyTextStyle,
         applyColorToSelected,
         handlerOwnElementCreate,
-        clearSelection
+        clearSelection,
+        getCurrentElementState
       });
     }
-  }, [onCanvasMethodsReady, updateElementOnCanvas, removeElementFromCanvas, addElementToCanvas, saveCanvasState, restoreCanvasState, applyTextStyle, applyColorToSelected, handlerOwnElementCreate, clearSelection]);
+  }, [onCanvasMethodsReady, updateElementOnCanvas, removeElementFromCanvas, addElementToCanvas, saveCanvasState, restoreCanvasState, applyTextStyle, applyColorToSelected, handlerOwnElementCreate, clearSelection, getCurrentElementState]);
 
   if (!slide) {
     return (

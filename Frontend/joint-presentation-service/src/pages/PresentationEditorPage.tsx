@@ -97,6 +97,7 @@ const PresentationEditorPage: React.FC<PresentationEditorPageProps> = ({ current
     applyColorToSelected: (color?:string) => void;
     handlerOwnElementCreate: (element: SlideElement) => void;
     clearSelection: () => void;
+    getCurrentElementState?: (elementId: number) => SlideElement | null;
   } | null>(null);
 
   const {
@@ -346,13 +347,28 @@ const PresentationEditorPage: React.FC<PresentationEditorPageProps> = ({ current
     });
   }, [onElementAdded, currentSlideWithElements?.id, canvasMethodsRef, invalidateSlideCache, currentUserId]);
 
+  const updateSlideCache = (element: SlideElement) => {
+    setSlideCache(prev => {
+      const newCache = new Map(prev);
+      const cachedSlide = newCache.get(element.slideId);
+      if (cachedSlide) {
+        const updatedElements = cachedSlide.elements?.map(el => 
+          el.id === element.id ? element : el
+        ) || [];
+        newCache.set(element.slideId, { ...cachedSlide, elements: updatedElements });
+      }
+      return newCache;
+    });
+  };
+
   useEffect(() => {
     onElementUpdated((data) => {
       if (currentSlideWithElements?.elements?.some(el => el.id === data.elementId) && canvasMethodsRef) {
         if (data.initiatorUserId !== currentUserId) {
           canvasMethodsRef.updateElement(data.element);
-          invalidateSlideCache(currentSlideWithElements.id);
         }
+        //invalidateSlideCache(currentSlideWithElements.id);
+        updateSlideCache(data.element);
       }
     });
   }, [onElementUpdated, currentSlideWithElements, canvasMethodsRef, invalidateSlideCache, currentUserId]);
@@ -551,6 +567,7 @@ const PresentationEditorPage: React.FC<PresentationEditorPageProps> = ({ current
     applyColorToSelected: () => void;
     handlerOwnElementCreate: (element: SlideElement) => void;
     clearSelection: () => void;
+    getCurrentElementState?: (elementId: number) => SlideElement | null;
   }) => {
     setCanvasMethodsRef(methods);
   }, []);

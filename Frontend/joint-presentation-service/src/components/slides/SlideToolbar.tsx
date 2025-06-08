@@ -93,9 +93,12 @@ const SlideToolbar: React.FC<SlideToolbarProps> = ({
   ];
 
   const colors = [
-    '#3B82F6', '#EF4444', '#10B981', '#F59E0B', 
-    '#8B5CF6', '#F97316', '#06B6D4', '#84CC16',
-    '#EC4899', '#6B7280', '#000000', '#FFFFFF'
+    '#3B82F6', '#EF4444', 
+    '#10B981', '#F59E0B', 
+    '#8B5CF6', '#F97316', 
+    '#06B6D4', '#84CC16', 
+    '#EC4899', '#6B7280', 
+    '#000000', '#FFFFFF'
   ];
 
   const fontSizes = [12, 14, 16, 18, 20, 24, 28, 32, 36, 48];
@@ -158,6 +161,7 @@ const SlideToolbar: React.FC<SlideToolbarProps> = ({
   };
 
   const isShapeToolSelected = selectedTool.startsWith('shape-');
+
 
   const renderBasicTools = () => (
     <>
